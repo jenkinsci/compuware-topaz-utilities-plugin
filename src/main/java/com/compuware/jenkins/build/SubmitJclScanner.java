@@ -39,10 +39,9 @@ import hudson.util.ArgumentListBuilder;
 /**
  * Class used to initiate a JCL submit. This class will utilize the Topaz command line interface to do the submission.
  */
-public class SubmitJclScanner
-{
+public class SubmitJclScanner {
 	// Member Variables
-	private SubmitJclBuilder m_jclBuilder;
+	private SubmitJclBuilder jclBuilder;
 
 	/**
 	 * Constructor.
@@ -50,9 +49,8 @@ public class SubmitJclScanner
 	 * @param config
 	 *            the <code>SubmitJclBuilder</code> to use for the scan
 	 */
-	public SubmitJclScanner(SubmitJclBuilder config)
-	{
-		m_jclBuilder = config;
+	public SubmitJclScanner(SubmitJclBuilder config) {
+		jclBuilder = config;
 	}
 
 	/**
@@ -73,8 +71,7 @@ public class SubmitJclScanner
 	 *             if the user cancels the submit
 	 */
 	public void perform(Run<?, ?> run, FilePath workspace, Launcher launcher, TaskListener listener)
-			throws IOException, InterruptedException
-	{
+			throws IOException, InterruptedException {
 		// obtain argument values to pass to the CLI
 		PrintStream logger = listener.getLogger();
 		CpwrGlobalConfiguration globalConfig = CpwrGlobalConfiguration.get();
@@ -93,18 +90,17 @@ public class SubmitJclScanner
 		logger.println("cliScriptFile: " + cliScriptFile); //$NON-NLS-1$
 		String cliScriptFileRemote = new FilePath(vChannel, cliScriptFile).getRemote();
 		logger.println("cliScriptFileRemote: " + cliScriptFileRemote); //$NON-NLS-1$
-		HostConnection connection = globalConfig.getHostConnection(m_jclBuilder.getConnectionId());
+		HostConnection connection = globalConfig.getHostConnection(jclBuilder.getConnectionId());
 		String host = ArgumentUtils.escapeForScript(connection.getHost());
 		String port = ArgumentUtils.escapeForScript(connection.getPort());
-		StandardUsernamePasswordCredentials credentials = globalConfig.getLoginInformation(run.getParent(),
-				m_jclBuilder.getCredentialsId());
+		StandardUsernamePasswordCredentials credentials = globalConfig.getLoginInformation(run.getParent(), jclBuilder.getCredentialsId());
 		String userId = ArgumentUtils.escapeForScript(credentials.getUsername());
 		String password = ArgumentUtils.escapeForScript(credentials.getPassword().getPlainText());
 		String codePage = connection.getCodePage();
 		String timeout = ArgumentUtils.escapeForScript(connection.getTimeout());
 		String topazCliWorkspace = workspace.getRemote() + remoteFileSeparator + CommonConstants.TOPAZ_CLI_WORKSPACE;
 		logger.println("topazCliWorkspace: " + topazCliWorkspace); //$NON-NLS-1$
-		String maxConditionCodeStr = ArgumentUtils.escapeForScript(m_jclBuilder.getMaxConditionCode());
+		String maxConditionCodeStr = ArgumentUtils.escapeForScript(jclBuilder.getMaxConditionCode());
 
 		// build the list of arguments to pass to the CLI
 		ArgumentListBuilder args = new ArgumentListBuilder();
@@ -119,16 +115,13 @@ public class SubmitJclScanner
 		args.add(CommonConstants.DATA_PARM, topazCliWorkspace);
 		args.add(TopazUtilitiesConstants.MAX_CC_PARM, maxConditionCodeStr);
 
-		if (m_jclBuilder.isSubmitTypeJclMembers())
-		{
-			String jclMembers = ArgumentUtils
-					.escapeForScript(StringUtils.replaceChars(m_jclBuilder.getJclMembers(), '\n', ','));
-			args.add(TopazUtilitiesConstants.JCL_DSNS, jclMembers);
-		}
-		else if (m_jclBuilder.isSubmitTypeJcl())
-		{
-			String jcl = ArgumentUtils.escapeForScript(m_jclBuilder.getJcl());
+		boolean isJcl = isJcl(jclBuilder.getJcl());
+		if (isJcl) {
+			String jcl = ArgumentUtils.escapeForScript(jclBuilder.getJcl());
 			args.add(TopazUtilitiesConstants.JCL, jcl);
+		} else {
+			String jclMembers = ArgumentUtils.escapeForScript(StringUtils.replaceChars(jclBuilder.getJcl(), '\n', ','));
+			args.add(TopazUtilitiesConstants.JCL_DSNS, jclMembers);
 		}
 
 		logger.println();
@@ -140,13 +133,23 @@ public class SubmitJclScanner
 
 		// invoke the CLI (execute the batch/shell script)
 		int exitValue = launcher.launch().cmds(args).envs(env).stdout(logger).pwd(workDir).join();
-		if (exitValue != 0)
-		{
+		if (exitValue != 0) {
 			throw new AbortException("Call " + osFile + " exited with value = " + exitValue); //$NON-NLS-1$ //$NON-NLS-2$
-		}
-		else
-		{
+		} else {
 			logger.println("Call " + osFile + " exited with value = " + exitValue); //$NON-NLS-1$ //$NON-NLS-2$
 		}
+	}
+
+	/**
+	 * Return TRUE if the given text is JCL.
+	 * 
+	 * @param text
+	 *            the text to examine
+	 * 
+	 * @return TRUE if the given text is JCL
+	 */
+	private boolean isJcl(String text) {
+		String trimmedText = StringUtils.stripStart(text, null);
+		return StringUtils.startsWithAny(trimmedText, new String[] { "//", "/*" }); //$NON-NLS-1$ //$NON-NLS-2$
 	}
 }

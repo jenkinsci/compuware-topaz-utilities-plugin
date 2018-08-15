@@ -1,3 +1,23 @@
 <div>
-This field allows you to enter JCL statements.<p/>
+List either JCL datasets, each on a separate line, or enter free form JCL. <strong><i>Listing JCL datasets cannot be mixed with free form JCL.</i></strong><p/>
+<pre>
+<b>Example 1:</b>
+A.B.JCL1
+A.B.JCL2
+A.B.JCL3(MEMBER)
+
+<b>Example 2:</b>
+//* This JCL simply migrates a file.
+//*
+//* 'IKJEFT01' is a utility program that can be used to run TSO
+//* commands from JCL (in this case, Migrate)
+//*
+//TESTMIG JOB ('ACCT#',LOCAL),'NAME',CLASS=A,
+//             MSGCLASS=R,NOTIFY=&SYSUID,PRTY=13,MSGLEVEL=(1,1)
+//STEP1 EXEC PGM=IKJEFT01
+//SYSTSPRT DD SYSOUT=*
+//SYSTSIN DD *
+   HMIGRATE 'TEST.COBOL.PDS'
+//
+</pre>
 </div>

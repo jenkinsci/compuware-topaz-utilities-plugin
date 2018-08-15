@@ -19,16 +19,19 @@ package com.compuware.jenkins.build;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
+
 import org.apache.commons.lang.StringUtils;
 import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
+
 import com.cloudbees.plugins.credentials.CredentialsProvider;
 import com.cloudbees.plugins.credentials.common.StandardUsernamePasswordCredentials;
 import com.cloudbees.plugins.credentials.domains.DomainRequirement;
 import com.compuware.jenkins.common.configuration.CpwrGlobalConfiguration;
 import com.compuware.jenkins.common.configuration.HostConnection;
+
 import hudson.Extension;
 import hudson.FilePath;
 import hudson.Launcher;
@@ -50,19 +53,19 @@ import net.sf.json.JSONObject;
 /**
  * Captures the configuration information for a Submit JCL build step.
  */
-public class SubmitJclBuilder extends Builder implements SimpleBuildStep
-{
-	// Constants
-	public static final String SUBMIT_TYPE_MEMBERS = "jclMembersType"; //$NON-NLS-1$
-	public static final String SUBMIT_TYPE_JCL = "jclType"; //$NON-NLS-1$
-
+public class SubmitJclBuilder extends Builder implements SimpleBuildStep {
 	// Member Variables
 	private final String m_connectionId;
 	private final String m_credentialsId;
 	private final String m_maxConditionCode;
-	private String m_jclMembers;
 	private String m_jcl;
-	private transient String m_type;
+
+	public SubmitJclBuilder(String connectionId) {
+		m_connectionId = StringUtils.trimToEmpty(connectionId);
+		m_credentialsId = null;
+		m_maxConditionCode = null;
+		m_jcl = null;
+	}
 
 	/**
 	 * Constructor.
@@ -73,41 +76,15 @@ public class SubmitJclBuilder extends Builder implements SimpleBuildStep
 	 *            unique id of the selected credential
 	 * @param maxConditionCode
 	 *            a maximum condition code
-	 * @param jclMembers
-	 *            the JCL members
 	 * @param jcl
 	 *            the JCL statements
-	 * @param type
-	 *            the type of JCL submit
 	 */
 	@DataBoundConstructor
-	public SubmitJclBuilder(String connectionId, String credentialsId, String maxConditionCode, String jclMembers, String jcl,
-			String type)
-	{
+	public SubmitJclBuilder(String connectionId, String credentialsId, String maxConditionCode, String jcl) {
 		m_connectionId = StringUtils.trimToEmpty(connectionId);
 		m_credentialsId = StringUtils.trimToEmpty(credentialsId);
 		m_maxConditionCode = StringUtils.trimToEmpty(maxConditionCode);
-		m_jclMembers = StringUtils.trimToEmpty(jclMembers);
 		m_jcl = StringUtils.trimToEmpty(jcl);
-		m_type = StringUtils.trimToEmpty(type);
-
-		// Only allow the last selected jcl type to be persisted
-		if (StringUtils.isNotEmpty(m_type))
-		{
-			if (SUBMIT_TYPE_MEMBERS.equals(m_type))
-			{
-				m_jcl = StringUtils.EMPTY;
-			}
-			else
-			{
-				m_jclMembers = StringUtils.EMPTY;
-			}
-		}
-		else if (StringUtils.isNotEmpty(m_jclMembers) && StringUtils.isNotEmpty(m_jcl))
-		{
-			// We should not get here, but just in case...
-			m_jcl = StringUtils.EMPTY;
-		}
 	}
 
 	/**
@@ -115,8 +92,7 @@ public class SubmitJclBuilder extends Builder implements SimpleBuildStep
 	 * 
 	 * @return <code>String</code> value of m_connectionId
 	 */
-	public String getConnectionId()
-	{
+	public String getConnectionId() {
 		return m_connectionId;
 	}
 
@@ -125,8 +101,7 @@ public class SubmitJclBuilder extends Builder implements SimpleBuildStep
 	 * 
 	 * @return <code>String</code> value of m_credentialsId
 	 */
-	public String getCredentialsId()
-	{
+	public String getCredentialsId() {
 		return m_credentialsId;
 	}
 
@@ -135,24 +110,8 @@ public class SubmitJclBuilder extends Builder implements SimpleBuildStep
 	 * 
 	 * @return <code>String</code> value of m_maxConditionCode
 	 */
-	public String getMaxConditionCode()
-	{
+	public String getMaxConditionCode() {
 		return m_maxConditionCode;
-	}
-
-	/**
-	 * Gets the value of the JCL 'Members'.
-	 * 
-	 * @return <code>String</code> value of m_jclMembers
-	 */
-	public String getJclMembers()
-	{
-		// Set the active selection by examining the incoming jcl
-		if (StringUtils.isNotEmpty(m_jclMembers))
-		{
-			m_type = SUBMIT_TYPE_MEMBERS;
-		}
-		return m_jclMembers;
 	}
 
 	/**
@@ -160,83 +119,65 @@ public class SubmitJclBuilder extends Builder implements SimpleBuildStep
 	 * 
 	 * @return <code>String</code> value of m_jcl
 	 */
-	public String getJcl()
-	{
-		// Set the active selection by examining the incoming jcl
-		if (StringUtils.isNotEmpty(m_jcl))
-		{
-			m_type = SUBMIT_TYPE_JCL;
-		}
+	public String getJcl() {
 		return m_jcl;
-	}
-
-	/**
-	 * Gets the value of the submit type.
-	 * 
-	 * @return the value of m_type
-	 */
-	public String getType()
-	{
-		return m_type;
 	}
 
 	/*
 	 * (non-Javadoc)
+	 * 
 	 * @see hudson.tasks.Builder#getDescriptor()
 	 */
 	@Override
-	public JclDescriptorImpl getDescriptor()
-	{
+	public JclDescriptorImpl getDescriptor() {
 		return (JclDescriptorImpl) super.getDescriptor();
 	}
 
 	/**
-	 * DescriptorImpl is used to create instances of <code>SubmitJclBuilder</code>. It also contains the global configuration
-	 * options as fields, just like the <code>SubmitJclBuilder</code> contains the configuration options for a job
+	 * DescriptorImpl is used to create instances of <code>SubmitJclBuilder</code>. It also contains the global configuration options as
+	 * fields, just like the <code>SubmitJclBuilder</code> contains the configuration options for a job
 	 */
 	@Extension
-	public static final class JclDescriptorImpl extends BuildStepDescriptor<Builder>
-	{
+	public static final class JclDescriptorImpl extends BuildStepDescriptor<Builder> {
 		/**
 		 * Constructor.
 		 * <p>
 		 * In order to load the persisted global configuration, you have to call load() in the constructor.
 		 */
-		public JclDescriptorImpl()
-		{
+		public JclDescriptorImpl() {
 			super(SubmitJclBuilder.class);
 			load();
 		}
 
 		/*
 		 * (non-Javadoc)
+		 * 
 		 * @see hudson.tasks.BuildStepDescriptor#isApplicable(java.lang.Class)
 		 */
 		@Override
 		@SuppressWarnings("rawtypes")
-		public boolean isApplicable(Class<? extends AbstractProject> aClass)
-		{
+		public boolean isApplicable(Class<? extends AbstractProject> aClass) {
 			// Indicates that this builder can be used with all kinds of project types
 			return true;
 		}
 
 		/*
 		 * (non-Javadoc)
+		 * 
 		 * @see hudson.model.Descriptor#getDisplayName()
 		 */
 		@Override
-		public String getDisplayName()
-		{
+		public String getDisplayName() {
 			return Messages.descriptorDisplayName();
 		}
 
 		/*
 		 * (non-Javadoc)
+		 * 
 		 * @see hudson.model.Descriptor#configure(org.kohsuke.stapler.StaplerRequest, net.sf.json.JSONObject)
 		 */
 		@Override
-		public boolean configure(StaplerRequest req, JSONObject formData) throws FormException
-		{
+		public boolean configure(StaplerRequest req, JSONObject formData) throws FormException {
 			save();
 			return super.configure(req, formData);
 		}
@@ -249,11 +190,9 @@ public class SubmitJclBuilder extends Builder implements SimpleBuildStep
 		 * 
 		 * @return validation message
 		 */
-		public FormValidation doCheckConnectionId(@QueryParameter String connectionId)
-		{
+		public FormValidation doCheckConnectionId(@QueryParameter String connectionId) {
 			String tempValue = StringUtils.trimToEmpty(connectionId);
-			if (tempValue.isEmpty())
-			{
+			if (tempValue.isEmpty()) {
 				return FormValidation.error(Messages.checkHostConnectionError());
 			}
 
@@ -268,11 +207,9 @@ public class SubmitJclBuilder extends Builder implements SimpleBuildStep
 		 * 
 		 * @return validation message
 		 */
-		public FormValidation doCheckCredentialsId(@QueryParameter String credentialsId)
-		{
+		public FormValidation doCheckCredentialsId(@QueryParameter String credentialsId) {
 			String tempValue = StringUtils.trimToEmpty(credentialsId);
-			if (tempValue.isEmpty())
-			{
+			if (tempValue.isEmpty()) {
 				return FormValidation.error(Messages.checkLoginCredentialsError());
 			}
 
@@ -287,31 +224,10 @@ public class SubmitJclBuilder extends Builder implements SimpleBuildStep
 		 * 
 		 * @return validation message
 		 */
-		public FormValidation doCheckMaxConditionCode(@QueryParameter String maxConditionCode)
-		{
+		public FormValidation doCheckMaxConditionCode(@QueryParameter String maxConditionCode) {
 			String tempValue = StringUtils.trimToEmpty(maxConditionCode);
-			if (tempValue.isEmpty())
-			{
+			if (tempValue.isEmpty()) {
 				return FormValidation.error(Messages.checkMaxConditionCodeError());
-			}
-
-			return FormValidation.ok();
-		}
-
-		/**
-		 * Validator for the 'JCL Members' field.
-		 * 
-		 * @param jclMembers
-		 *            a comma separated list of JCL members passed from the config.jelly "jclMembers" field
-		 * 
-		 * @return validation message
-		 */
-		public FormValidation doCheckJclMembers(@QueryParameter String jclMembers)
-		{
-			String tempValue = StringUtils.trimToEmpty(jclMembers);
-			if (tempValue.isEmpty())
-			{
-				return FormValidation.error(Messages.checkJclMembersError());
 			}
 
 			return FormValidation.ok();
@@ -325,11 +241,9 @@ public class SubmitJclBuilder extends Builder implements SimpleBuildStep
 		 * 
 		 * @return validation message
 		 */
-		public FormValidation doCheckJclEntry(@QueryParameter String jcl)
-		{
+		public FormValidation doCheckJcl(@QueryParameter String jcl) {
 			String tempValue = StringUtils.trimToEmpty(jcl);
-			if (tempValue.isEmpty())
-			{
+			if (tempValue.isEmpty()) {
 				return FormValidation.error(Messages.checkJclError());
 			}
 
@@ -349,19 +263,16 @@ public class SubmitJclBuilder extends Builder implements SimpleBuildStep
 		 * @return host connection selections
 		 */
 		public ListBoxModel doFillConnectionIdItems(@AncestorInPath Jenkins context, @QueryParameter String connectionId,
-				@AncestorInPath Item project)
-		{
+				@AncestorInPath Item project) {
 			CpwrGlobalConfiguration globalConfig = CpwrGlobalConfiguration.get();
 			HostConnection[] hostConnections = globalConfig.getHostConnections();
 
 			ListBoxModel model = new ListBoxModel();
 			model.add(new Option(StringUtils.EMPTY, StringUtils.EMPTY, false));
 
-			for (HostConnection connection : hostConnections)
-			{
+			for (HostConnection connection : hostConnections) {
 				boolean isSelected = false;
-				if (connectionId != null)
-				{
+				if (connectionId != null) {
 					isSelected = connectionId.matches(connection.getConnectionId());
 				}
 
@@ -385,20 +296,16 @@ public class SubmitJclBuilder extends Builder implements SimpleBuildStep
 		 * @return login credentials selection
 		 */
 		public ListBoxModel doFillCredentialsIdItems(@AncestorInPath Jenkins context, @QueryParameter String credentialsId,
-				@AncestorInPath Item project)
-		{
+				@AncestorInPath Item project) {
 			List<StandardUsernamePasswordCredentials> creds = CredentialsProvider.lookupCredentials(
-					StandardUsernamePasswordCredentials.class, project, ACL.SYSTEM,
-					Collections.<DomainRequirement> emptyList());
+					StandardUsernamePasswordCredentials.class, project, ACL.SYSTEM, Collections.<DomainRequirement>emptyList());
 
 			ListBoxModel model = new ListBoxModel();
 			model.add(new Option(StringUtils.EMPTY, StringUtils.EMPTY, false));
 
-			for (StandardUsernamePasswordCredentials c : creds)
-			{
+			for (StandardUsernamePasswordCredentials c : creds) {
 				boolean isSelected = false;
-				if (credentialsId != null)
-				{
+				if (credentialsId != null) {
 					isSelected = credentialsId.matches(c.getId());
 				}
 
@@ -411,48 +318,15 @@ public class SubmitJclBuilder extends Builder implements SimpleBuildStep
 		}
 	}
 
-	/* 
+	/*
 	 * (non-Javadoc)
+	 * 
 	 * @see jenkins.tasks.SimpleBuildStep#perform(hudson.model.Run, hudson.FilePath, hudson.Launcher, hudson.model.TaskListener)
 	 */
 	@Override
 	public void perform(Run<?, ?> run, FilePath workspace, Launcher launcher, TaskListener listener)
-			throws InterruptedException, IOException
-	{
+			throws InterruptedException, IOException {
 		SubmitJclScanner scanner = new SubmitJclScanner(this);
 		scanner.perform(run, workspace, launcher, listener);
-	}
-
-	/**
-	 * Return TRUE if the submit type is for JCL members.
-	 * 
-	 * @return TRUE if the submit type is for JCL members
-	 */
-	public boolean isSubmitTypeJclMembers()
-	{
-		return StringUtils.isNotEmpty(m_jclMembers) && SUBMIT_TYPE_MEMBERS.equals(m_type);
-	}
-
-	/**
-	 * Return TRUE if the submit type is for JCL.
-	 * 
-	 * @return TRUE if the submit type is for JCL
-	 */
-	public boolean isSubmitTypeJcl()
-	{
-		return StringUtils.isNotEmpty(m_jcl) && SUBMIT_TYPE_JCL.equals(m_type);
-	}
-
-	/**
-	 * Test if the JCL submit type names match (for marking the radio button).
-	 * 
-	 * @param jclSubmitType
-	 *            The String representation of the JCL submit type.
-	 * 
-	 * @return Whether or not the JCL submit type string matches.
-	 */
-	public String isJclSubmitType(String jclSubmitType)
-	{
-		return m_type.equalsIgnoreCase(jclSubmitType) ? "true" : StringUtils.EMPTY; //$NON-NLS-1$
 	}
 }

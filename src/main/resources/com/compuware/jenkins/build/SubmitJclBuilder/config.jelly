@@ -9,14 +9,7 @@
       <f:entry title="${%maxConditionCode}" field="maxConditionCode" help="/plugin/compuware-topaz-utilities-plugin/help-maxConditionCode.html">
             <f:textbox style="width:10%" default="8"/>
       </f:entry>
-       <f:radioBlock name="type" value="jclMembersType" title="${%referenceJclMembers}" default="jclMembersType" checked="${instance == null || instance.isJclSubmitType('jclMembersType')}" inline="true">
-      		<f:entry field="jclMembers" help="/plugin/compuware-topaz-utilities-plugin/help-referenceJclMembers.html">
-            	<f:textarea default=""/>
-      		</f:entry>
-      </f:radioBlock>
-      <f:radioBlock name="type" value="jclType" title="${%specifyJcl}" checked="${instance.isJclSubmitType('jclType')}" inline="true">
-      		<f:entry field="jcl" help="/plugin/compuware-topaz-utilities-plugin/help-specifyJcl.html">
-            	<f:textarea default=""/>
-      		</f:entry>
-      </f:radioBlock>
+      <f:entry title="${%jcl}" field="jcl" help="/plugin/compuware-topaz-utilities-plugin/help-jcl.html" description="List either JCL datasets, each on a separate line, or enter free form JCL. Listing JCL datasets cannot be mixed with free form JCL.">
+           	<f:textarea default=""/>
+      </f:entry>
 </j:jelly>
