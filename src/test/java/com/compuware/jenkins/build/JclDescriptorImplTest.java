@@ -18,77 +18,73 @@ import org.apache.commons.lang.StringUtils;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.JenkinsRule;
-import org.kohsuke.stapler.Stapler;
+import org.jvnet.hudson.test.TestExtension;
 import org.kohsuke.stapler.StaplerRequest;
 
 import com.cloudbees.plugins.credentials.CredentialsScope;
+import com.cloudbees.plugins.credentials.SystemCredentialsProvider.UserFacingAction;
 import com.cloudbees.plugins.credentials.domains.Domain;
 import com.cloudbees.plugins.credentials.impl.UsernamePasswordCredentialsImpl;
-import com.compuware.jenkins.build.SubmitJclBuilder.JclDescriptorImpl;
 import com.compuware.jenkins.common.configuration.CpwrGlobalConfiguration;
 import com.compuware.jenkins.common.configuration.HostConnection;
-import com.cloudbees.plugins.credentials.SystemCredentialsProvider.UserFacingAction;
 
+import hudson.Launcher;
+import hudson.model.AbstractBuild;
+import hudson.model.AbstractProject;
+import hudson.model.BuildListener;
+import hudson.model.Descriptor;
 import hudson.model.Descriptor.FormException;
+import hudson.tasks.Builder;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
-import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
 
 /**
- * 
+ * Test cases for {@link JclDescriptorImpl}.
  */
+@SuppressWarnings("nls")
 public class JclDescriptorImplTest {
-	// Builder expected values
-	/* @formatter:off */
-	private static final String EXPECTED_CONNECTION_ID = "12345";
-	private static final String EXPECTED_CREDENTIALS_ID = "67890";
 	private static final String EXPECTED_MAX_CONDITION_CODE = "4";
-	private static final String EXPECTED_JCL_MEMBERS_STRING = 
-			"A.B.MYJCL\n" + 
-			"A.B.MYJCL2\n" + 
-			"MYJCL(JCLMEM3)";
-	private static final String EXPECTED_JCL = 
-			"//* This JCL simply migrates a file.\r\n" + 
-			"//*\r\n" + 
-			"//* 'IKJEFT01' is a utility program that can be used to run TSO\r\n" + 
-			"//* commands from JCL (in this case, Migrate)\r\n" + 
-			"//*\r\n" + 
-			"//TESTMIG JOB ('ACCT#',LOCAL),'NAME',CLASS=A,\r\n" + 
-			"//             MSGCLASS=R,NOTIFY=&SYSUID,PRTY=13,MSGLEVEL=(1,1)\r\n" + 
-			"//STEP1 EXEC PGM=IKJEFT01\r\n" + 
-			"//SYSTSPRT DD SYSOUT=*\r\n" + 
-			"//SYSTSIN DD *\r\n" + 
-			"   HMIGRATE 'TEST.COBOL.PDS'\r\n" + 
-			"//";
-	private static final String EXPECTED_HOST = "cw01";
-	private static final String EXPECTED_PORT = "30947";
-	private static final String EXPECTED_CES_URL = "https://expectedcesurl/";
-	private static final String EXPECTED_CODE_PAGE = "1047";
-	private static final String EXPECTED_TIMEOUT = "123";
-	private static final String EXPECTED_USER_ID = "xdevreg";
-	private static final String EXPECTED_PASSWORD = "********";
-	/* @formatter:on */
+	private static final String EXPECTED_HOST = "host";
+	private static final String EXPECTED_PORT = "port";
+	private static final String EXPECTED_USER_ID = "userid";
 
-	@Rule
-	public JenkinsRule j = new JenkinsRule();
+	public @Rule JenkinsRule rule = new JenkinsRule();
 
-	/**
-	 * Test method for {@link com.compuware.jenkins.build.SubmitJclBuilder.JclDescriptorImpl#isApplicable(java.lang.Class)}.
-	 */
-	@Test
-	public void testIsApplicable() {
-		JclDescriptorImpl descriptor = new JclDescriptorImpl();
-		assertTrue(descriptor.isApplicable(null));
+	private static final class BuilderImpl extends Builder {
+		@Override
+		public boolean perform(AbstractBuild<?, ?> build, Launcher launcher, BuildListener listener)
+				throws InterruptedException, IOException {
+			return true;
+		}
+
+		@Override
+		public DescriptorImpl getDescriptor() {
+			return (DescriptorImpl) super.getDescriptor();
+		}
+
+		@TestExtension
+		public static final class DescriptorImpl extends JclDescriptorImpl<Builder> {
+			@Override
+			public Builder newInstance(StaplerRequest req, JSONObject formData) throws Descriptor.FormException {
+				return new BuilderImpl();
+			}
+
+			@Override
+			public boolean isApplicable(@SuppressWarnings("rawtypes") Class<? extends AbstractProject> aClass) {
+				return true;
+			}
+		}
 	}
 
 	/**
-	 * Test method for {@link com.compuware.jenkins.build.SubmitJclBuilder.JclDescriptorImpl#getDisplayName()}.
+	 * Test method for {@link com.compuware.jenkins.build.JclDescriptorImpl#isApplicable(java.lang.Class)}.
 	 */
 	@Test
-	public void testGetDisplayName() {
-		JclDescriptorImpl descriptor = new JclDescriptorImpl();
-		assertEquals(Messages.descriptorDisplayName(), descriptor.getDisplayName());
+	public void testIsApplicable() {
+		BuilderImpl.DescriptorImpl descriptor = new BuilderImpl.DescriptorImpl();
+
+		assertTrue(descriptor.isApplicable(null));
 	}
 
 	/**
@@ -96,66 +92,31 @@ public class JclDescriptorImplTest {
 	 */
 	@Test
 	public void testNullJsonConfigure() throws FormException {
-		final JclDescriptorImpl descriptor = new JclDescriptorImpl();
+		BuilderImpl.DescriptorImpl descriptor = new BuilderImpl.DescriptorImpl();
+
 		final JSONObject json = new JSONObject();
 		final StaplerRequest req = null;
 		assertTrue(descriptor.configure(req, json));
 	}
-	
-//	/**
-//	 * Test method for {@link com.compuware.jenkins.build.SubmitJclBuilder.JclDescriptorImpl#configure(org.kohsuke.stapler.StaplerRequest, net.sf.json.JSONObject)}.
-//	 */
-//	@Test
-//	public void testConfigureStaplerRequestJSONObject() throws FormException {
-//		final JclDescriptorImpl descriptor = new JclDescriptorImpl();
-//		
-//		final JSONObject hostConnection = new JSONObject();
-//		hostConnection.put("description", "TestConnection");
-//		hostConnection.put("hostPort", EXPECTED_HOST + ':' + EXPECTED_PORT);
-//		hostConnection.put("codePage", EXPECTED_CODE_PAGE);
-//		hostConnection.put("timeout", EXPECTED_TIMEOUT);
-//		hostConnection.put("connectionId", EXPECTED_CONNECTION_ID);
-//		hostConnection.put("cesUrl", EXPECTED_CES_URL);
-//
-//		JSONArray hostConnections = new JSONArray();
-//		hostConnections.add(hostConnection);
-//
-//		final JSONObject json = new JSONObject();
-//		json.put("hostConn", hostConnections);
-//		json.put("topazCLILocationLinux", "/opt/Compuware/TopazCLI");
-//		json.put("topazCLILocationWindows", "C:\\Program Files\\Compuware\\Topaz Workbench CLI");
-//
-//		final StaplerRequest req = null;
-//		assertTrue(descriptor.configure(req, json));
-//
-//		descriptor.load();
-//		
-//		System.out.print("here");
-//
-////		assertEquals(1, servers.size());
-////		assertEquals("Test Server Name", servers.get(0).getProtexPostServerName());
-////		assertEquals("https://www.google.com", servers.get(0).getProtexPostServerUrl());
-////		assertEquals("999", servers.get(0).getProtexPostServerTimeOut());
-//	}
 
 	/**
-	 * Test method for {@link com.compuware.jenkins.build.SubmitJclBuilder.JclDescriptorImpl#doCheckConnectionId(java.lang.String)}.
+	 * Test method for {@link com.compuware.jenkins.build.JclDescriptorImpl#doCheckConnectionId(java.lang.String)}.
 	 */
 	@Test
 	public void testDoCheckConnectionId() {
-		final JclDescriptorImpl descriptor = new JclDescriptorImpl();
+		BuilderImpl.DescriptorImpl descriptor = new BuilderImpl.DescriptorImpl();
 
 		assertEquals(Messages.checkHostConnectionError(), descriptor.doCheckConnectionId(null).getMessage());
 		assertEquals(Messages.checkHostConnectionError(), descriptor.doCheckConnectionId(StringUtils.EMPTY).getMessage());
-		assertEquals(FormValidation.ok(), descriptor.doCheckConnectionId(EXPECTED_HOST + ":" + EXPECTED_PORT)); //$NON-NLS-1$
+		assertEquals(FormValidation.ok(), descriptor.doCheckConnectionId(EXPECTED_HOST + ":" + EXPECTED_PORT));
 	}
 
 	/**
-	 * Test method for {@link com.compuware.jenkins.build.SubmitJclBuilder.JclDescriptorImpl#doCheckCredentialsId(java.lang.String)}.
+	 * Test method for {@link com.compuware.jenkins.build.JclDescriptorImpl#doCheckCredentialsId(java.lang.String)}.
 	 */
 	@Test
 	public void testDoCheckCredentialsId() {
-		final JclDescriptorImpl descriptor = new JclDescriptorImpl();
+		BuilderImpl.DescriptorImpl descriptor = new BuilderImpl.DescriptorImpl();
 
 		assertEquals(Messages.checkLoginCredentialsError(), descriptor.doCheckCredentialsId(null).getMessage());
 		assertEquals(Messages.checkLoginCredentialsError(), descriptor.doCheckCredentialsId(StringUtils.EMPTY).getMessage());
@@ -163,11 +124,11 @@ public class JclDescriptorImplTest {
 	}
 
 	/**
-	 * Test method for {@link com.compuware.jenkins.build.SubmitJclBuilder.JclDescriptorImpl#doCheckMaxConditionCode(java.lang.String)}.
+	 * Test method for {@link com.compuware.jenkins.build.JclDescriptorImpl#doCheckMaxConditionCode(java.lang.String)}.
 	 */
 	@Test
 	public void testDoCheckMaxConditionCode() {
-		final JclDescriptorImpl descriptor = new JclDescriptorImpl();
+		BuilderImpl.DescriptorImpl descriptor = new BuilderImpl.DescriptorImpl();
 
 		assertEquals(Messages.checkMaxConditionCodeError(), descriptor.doCheckMaxConditionCode(null).getMessage());
 		assertEquals(Messages.checkMaxConditionCodeError(), descriptor.doCheckMaxConditionCode(StringUtils.EMPTY).getMessage());
@@ -175,38 +136,49 @@ public class JclDescriptorImplTest {
 	}
 
 	/**
-	 * Test method for {@link com.compuware.jenkins.build.SubmitJclBuilder.JclDescriptorImpl#doCheckJcl(java.lang.String)}.
+	 * Test method for
+	 * {@link com.compuware.jenkins.build.JclDescriptorImpl#doFillConnectionIdItems(jenkins.model.Jenkins, java.lang.String, hudson.model.Item)}.
 	 */
 	@Test
-	public void testDoCheckJcl() {
-		final JclDescriptorImpl descriptor = new JclDescriptorImpl();
-
-		assertEquals(Messages.checkJclError(), descriptor.doCheckJcl(null).getMessage());
-		assertEquals(Messages.checkJclError(), descriptor.doCheckJcl(StringUtils.EMPTY).getMessage());
-		assertEquals(FormValidation.ok(), descriptor.doCheckJcl(EXPECTED_JCL_MEMBERS_STRING));
-	}
-
-	/**
-	 * Test method for {@link com.compuware.jenkins.build.SubmitJclBuilder.JclDescriptorImpl#doFillConnectionIdItems(jenkins.model.Jenkins, java.lang.String, hudson.model.Item)}.
-	 */
-	//@Test
 	public void testDoFillConnectionIdItems() {
-		fail("Not yet implemented");
+		BuilderImpl.DescriptorImpl descriptor = new BuilderImpl.DescriptorImpl();
+
+		ListBoxModel dropDownList = descriptor.doFillConnectionIdItems(null, null, null);
+		assertNotNull(dropDownList);
+		assertEquals("", dropDownList.get(0).name);
+		assertEquals("", dropDownList.get(0).value);
+
+		String connectionId = null;
+		final HostConnection hostConnection = new HostConnection("description", "hostPort", "codePage", "timeOut", "connectionId",
+				"cesUrl");
+		CpwrGlobalConfiguration globalConfig = CpwrGlobalConfiguration.get();
+		globalConfig.addHostConnection(hostConnection);
+
+		connectionId = hostConnection.getConnectionId();
+		dropDownList = descriptor.doFillConnectionIdItems(null, connectionId, null);
+
+		assertEquals("", dropDownList.get(0).name);
+		assertEquals("", dropDownList.get(0).value);
+		final String connection = dropDownList.get(1).value;
+		assertEquals(connectionId, connection);
 	}
 
 	/**
-	 * Test method for {@link com.compuware.jenkins.build.SubmitJclBuilder.JclDescriptorImpl#doFillCredentialsIdItems(jenkins.model.Jenkins, java.lang.String, hudson.model.Item)}.
+	 * Test method for
+	 * {@link com.compuware.jenkins.build.JclDescriptorImpl#doFillCredentialsIdItems(jenkins.model.Jenkins, java.lang.String, hudson.model.Item)}.
 	 */
 	@Test
 	public void testDoFillCredentialsIdItems() {
-		final JclDescriptorImpl descriptor = new JclDescriptorImpl();
+		BuilderImpl.DescriptorImpl descriptor = new BuilderImpl.DescriptorImpl();
+
 		ListBoxModel dropDownList = descriptor.doFillCredentialsIdItems(null, null, null);
 		assertNotNull(dropDownList);
 		assertEquals("", dropDownList.get(0).name);
 		assertEquals("", dropDownList.get(0).value);
 		String credentialId = null;
 		try {
-			final UsernamePasswordCredentialsImpl credential = new UsernamePasswordCredentialsImpl(CredentialsScope.GLOBAL, null, null, "TEST_USERNAME", "TEST_PASSWORD");
+			final UsernamePasswordCredentialsImpl credential = new UsernamePasswordCredentialsImpl(CredentialsScope.GLOBAL, null, null,
+					"TEST_USERNAME", "TEST_PASSWORD");
 			UserFacingAction action = new UserFacingAction();
 			action.getStore().addCredentials(Domain.global(), credential);
 			credentialId = credential.getId();

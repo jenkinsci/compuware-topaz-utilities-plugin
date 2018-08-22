@@ -20,37 +20,32 @@ import static org.hamcrest.CoreMatchers.*;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.Assert.*;
 
-import org.junit.Before;
+import java.io.IOException;
+import java.util.List;
+
+import org.apache.commons.lang.StringUtils;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.JenkinsRule;
-import org.kohsuke.stapler.Stapler;
+import org.mockito.Mockito;
 
-import com.cloudbees.plugins.credentials.CredentialsScope;
-import com.cloudbees.plugins.credentials.SystemCredentialsProvider;
-import com.cloudbees.plugins.credentials.impl.UsernamePasswordCredentialsImpl;
-import com.compuware.jenkins.build.SubmitJclBuilder.JclDescriptorImpl;
-import com.compuware.jenkins.common.configuration.CpwrGlobalConfiguration;
+import com.compuware.jenkins.build.SubmitJclBuilder.DescriptorImpl;
+import com.compuware.jenkins.build.utils.TopazUtilitiesConstants;
 
-import hudson.model.FreeStyleBuild;
-import hudson.model.FreeStyleProject;
-import net.sf.json.JSONArray;
-import net.sf.json.JSONObject;
+import hudson.util.ArgumentListBuilder;
+import hudson.util.FormValidation;
 
 /**
  * Test cases for {@link SubmitJclBuilder}.
  */
 @SuppressWarnings("nls")
 public class SubmitJclBuilderTest {
+
 	// Builder expected values
 	/* @formatter:off */
 	private static final String EXPECTED_CONNECTION_ID = "12345";
 	private static final String EXPECTED_CREDENTIALS_ID = "67890";
 	private static final String EXPECTED_MAX_CONDITION_CODE = "4";
-	private static final String EXPECTED_JCL_MEMBERS_STRING = 
-			"A.B.MYJCL\n" + 
-			"A.B.MYJCL2\n" + 
-			"MYJCL(JCLMEM3)";
 	private static final String EXPECTED_JCL = 
 			"//* This JCL simply migrates a file.\r\n" + 
 			"//*\r\n" + 
@@ -64,58 +59,14 @@ public class SubmitJclBuilderTest {
 			"//SYSTSIN DD *\r\n" + 
 			"   HMIGRATE 'TEST.COBOL.PDS'\r\n" + 
 			"//";
-	private static final String EXPECTED_HOST = "cw01";
-	private static final String EXPECTED_PORT = "30947";
-	private static final String EXPECTED_CES_URL = "https://expectedcesurl/";
-	private static final String EXPECTED_CODE_PAGE = "1047";
-	private static final String EXPECTED_TIMEOUT = "123";
-	private static final String EXPECTED_USER_ID = "xdevreg";
-	private static final String EXPECTED_PASSWORD = "********";
+	private static final String EXPECTED_JCL_CMD_ARG = "\"" + EXPECTED_JCL + "\"";
 	/* @formatter:on */
 
-	// Member variables
-	@Rule
-	public JenkinsRule m_jenkinsRule = new JenkinsRule();
-	private CpwrGlobalConfiguration m_globalConfig;
+	public @Rule JenkinsRule rule = new JenkinsRule();
 
 	/**
-	 * @throws java.lang.Exception
-	 */
-	@Before
-	public void setup() {
-		try {
-			JSONObject hostConnection = new JSONObject();
-			hostConnection.put("description", "TestConnection");
-			hostConnection.put("hostPort", EXPECTED_HOST + ':' + EXPECTED_PORT);
-			hostConnection.put("codePage", EXPECTED_CODE_PAGE);
-			hostConnection.put("timeout", EXPECTED_TIMEOUT);
-			hostConnection.put("connectionId", EXPECTED_CONNECTION_ID);
-			hostConnection.put("cesUrl", EXPECTED_CES_URL);
-
-			JSONArray hostConnections = new JSONArray();
-			hostConnections.add(hostConnection);
-
-			JSONObject json = new JSONObject();
-			json.put("hostConn", hostConnections);
-			json.put("topazCLILocationLinux", "/opt/Compuware/TopazCLI");
-			json.put("topazCLILocationWindows", "C:\\Program Files\\Compuware\\Topaz Workbench CLI");
-
-			m_globalConfig = CpwrGlobalConfiguration.get();
-			m_globalConfig.configure(Stapler.getCurrentRequest(), json);
-
-			SystemCredentialsProvider.getInstance().getCredentials().add(new UsernamePasswordCredentialsImpl(CredentialsScope.USER,
-					EXPECTED_CREDENTIALS_ID, null, EXPECTED_USER_ID, EXPECTED_PASSWORD));
-			SystemCredentialsProvider.getInstance().save();
-		} catch (Exception e) {
-			// Add the print of the stack trace because the exception message is not enough to troubleshoot the root issue. For
-			// example, if the exception is constructed without a message, you get no information from executing fail().
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
-
-	/**
-	 * Test method for {@link com.compuware.jenkins.build.SubmitJclBuilder#SubmitJclBuilder(java.lang.String, java.lang.String, java.lang.String, java.lang.String)}
+	 * Test method for
+	 * {@link com.compuware.jenkins.build.SubmitJclBuilder#SubmitJclBuilder(java.lang.String, java.lang.String, java.lang.String, java.lang.String)}
 	 */
 	@Test
 	public void testSubmitJclBuilder() {
@@ -136,27 +87,30 @@ public class SubmitJclBuilderTest {
 	}
 
 	/**
-	 * Test method for {@link com.compuware.jenkins.build.SubmitJclBuilder#getConnectionId()}
+	 * Test method for {@link com.compuware.jenkins.build.SubmitJclBuilder#getDescriptor()}
 	 */
-	// @Test
-	public void testGetConnectionId() {
-		// Test via other test methods.
+	@Test
+	public void testGetDescriptor() {
+		SubmitJclBuilder submitJclBuilder = new SubmitJclBuilder("connectionId", "credentialsId", "4", "jcl");
+		DescriptorImpl descriptor = submitJclBuilder.getDescriptor();
+
+		assertThat("Expected SubmitJclBuilder.DescriptorImpl.getDisplayName() to not be null.", descriptor.getDisplayName(),
+				is(notNullValue()));
+		assertThat("Expected SubmitJclBuilder.DescriptorImpl.getDisplayName() to not be empty.", descriptor.getDisplayName().isEmpty(),
+				is(false));
+		assertEquals("Topaz Submit free-form JCL", descriptor.getDisplayName());
 	}
 
 	/**
-	 * Test method for {@link com.compuware.jenkins.build.SubmitJclBuilder#getCredentialsId()}
+	 * Test method for {@link com.compuware.jenkins.build.SubmitJclBuilder.JclDescriptorImpl#doCheckJcl(java.lang.String)}.
 	 */
-	// @Test
-	public void testGetCredentialsId() {
-		// Test via other test methods.
-	}
+	@Test
+	public void testDoCheckJcl() {
+		final DescriptorImpl descriptor = new DescriptorImpl();
 
-	/**
-	 * Test method for {@link com.compuware.jenkins.build.SubmitJclBuilder#getMaxConditionCode()}
-	 */
-	// @Test
-	public void testGetMaxConditionCode() {
-		// Test via other test methods.
+		assertEquals(Messages.checkJclError(), descriptor.doCheckJcl(null).getMessage());
+		assertEquals(Messages.checkJclError(), descriptor.doCheckJcl(StringUtils.EMPTY).getMessage());
+		assertEquals(FormValidation.ok(), descriptor.doCheckJcl(EXPECTED_JCL));
 	}
 
 	/**
@@ -168,128 +122,24 @@ public class SubmitJclBuilderTest {
 	}
 
 	/**
-	 * Test method for {@link com.compuware.jenkins.build.SubmitJclBuilder#getDescriptor()}
+	 * Test method for {@link com.compuware.jenkins.build.SubmitJclBuilder#buildArgumentList(Run<?, ?>, FilePath, Launcher, TaskListener)}
 	 */
 	@Test
-	public void testGetDescriptor() {
-		SubmitJclBuilder builder = new SubmitJclBuilder(EXPECTED_CONNECTION_ID, EXPECTED_CREDENTIALS_ID, EXPECTED_MAX_CONDITION_CODE,
-				EXPECTED_JCL);
-		JclDescriptorImpl descriptor = builder.getDescriptor();
-		assertThat("Expected SubmitJclBuilder.DescriptorImpl to not be null.", descriptor, is(notNullValue()));
-	}
+	public void testBuildArgumentList() throws IOException, InterruptedException {
+		SubmitJclBuilder submitJclBuilder = Mockito.spy(new SubmitJclBuilder("connectionId", "credentialsId", "4", EXPECTED_JCL));
+		Mockito.doReturn(new ArgumentListBuilder()).when((SubmitJclBaseBuilder) submitJclBuilder).doBuildArgumentList(null, null, null,
+				null);
+		ArgumentListBuilder args = submitJclBuilder.buildArgumentList(null, null, null, null);
 
-	/**
-	 * Test method for {@link com.compuware.jenkins.build.SubmitJclBuilder.JclDescriptorImpl#getDisplayName()}
-	 */
-	@Test
-	public void testJclDescriptorImpl() {
-		try {
-			JclDescriptorImpl descriptor = new JclDescriptorImpl();
+		assertThat("Expected SubmitJclBuilder.buildArgumentList() to not be null.", args, is(notNullValue()));
 
-			String displayName = descriptor.getDisplayName();
-			assertThat("Expected SubmitJclBuilder.DescriptorImpl.getDisplayName() to not be null.", displayName, is(notNullValue()));
-			assertThat("Expected SubmitJclBuilder.DescriptorImpl.getDisplayName() to not be empty.", displayName.isEmpty(), is(false));
-		} catch (Exception e) {
-			// Add the print of the stack trace because the exception message is not enough to troubleshoot the root issue. For
-			// example, if the exception is constructed without a message, you get no information from executing fail().
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
+		List<String> argsList = args.toList();
 
-	/**
-	 * Test method for
-	 * {@link com.compuware.jenkins.build.SubmitJclBuilder#perform(hudson.model.Run, hudson.FilePath, hudson.Launcher, hudson.model.TaskListener)}
-	 */
-	// @Test
-	public void testPerform() {
-		// Tested via other test methods.
-	}
+		assertThat("Expected SubmitJclBuilder.buildArgumentList() to not be empty.", argsList.isEmpty(), is(false));
 
-	/**
-	 * Tests the results of an execution.
-	 * <p>
-	 * A project is created, configured and executed where the log is examined to verify results.
-	 */
-	@Test
-	public void testExecution() {
-		try {
-			FreeStyleProject project = m_jenkinsRule.createFreeStyleProject("TestProject");
-			project.getBuildersList()
-					.add(new SubmitJclBuilder(EXPECTED_CONNECTION_ID, EXPECTED_CREDENTIALS_ID, EXPECTED_MAX_CONDITION_CODE, EXPECTED_JCL));
-
-			// don't expect the build to succeed since no CLI exists
-			if (project.scheduleBuild(null)) {
-				while (project.getLastCompletedBuild() == null) {
-					// wait for the build to complete before obtaining the log
-					continue;
-				}
-
-				FreeStyleBuild build = project.getLastCompletedBuild();
-				String logFileOutput = JenkinsRule.getLog(build);
-
-				/*
-				 * String expectedConnectionStr = String.format("-host \"%s\" -port \"%s\"", EXPECTED_HOST, EXPECTED_PORT);
-				 * assertThat("Expected log to contain Host connection: " + expectedConnectionStr + '.', logFileOutput,
-				 * containsString(expectedConnectionStr));
-				 * 
-				 * String expectedCodePageStr = String.format("-code %s", EXPECTED_CODE_PAGE);
-				 * assertThat("Expected log to contain Host code page: " + expectedCodePageStr + '.', logFileOutput,
-				 * containsString(expectedCodePageStr));
-				 * 
-				 * String expectedTimeoutStr = String.format("-timeout \"%s\"", EXPECTED_TIMEOUT);
-				 * assertThat("Expected log to contain Host timeout: " + expectedTimeoutStr + '.', logFileOutput,
-				 * containsString(expectedTimeoutStr));
-				 * 
-				 * String expectedCredentialsStr = String.format("-id \"%s\" -pass %s", EXPECTED_USER_ID, EXPECTED_PASSWORD);
-				 * assertThat("Expected log to contain Login credentials: " + expectedCredentialsStr + '.', logFileOutput,
-				 * containsString(expectedCredentialsStr));
-				 * 
-				 * assertThat(String.format("Expected log to contain Analysis properties path: \"%s\".",
-				 * EXPECTED_ANALYSIS_PROPERTIES_FILEPATH), logFileOutput, containsString(EXPECTED_ANALYSIS_PROPERTIES_FILEPATH));
-				 * 
-				 * assertThat(String.format("Expected log to contain Analysis properties: \"%s\".", EXPECTED_ANALYSIS_PROPERTIES_STRING),
-				 * logFileOutput, containsString(EXPECTED_ANALYSIS_PROPERTIES_STRING));
-				 */
-			}
-		} catch (Exception e) {
-			// Add the print of the stack trace because the exception message is not enough to troubleshoot the root issue. For
-			// example, if the exception is constructed without a message, you get no information from executing fail().
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
-
-	/**
-	 * Perform a round trip test on the Submit JCL configuration builder.
-	 * <p>
-	 * A project is created, configured, submitted / saved, and reloaded where the original configuration is compared against the reloaded
-	 * configuration for equality.
-	 */
-	@Test
-	public void testRoundTrip() {
-		try {
-			FreeStyleProject project = m_jenkinsRule.createFreeStyleProject("TestProject");
-			SubmitJclBuilder before = new SubmitJclBuilder(EXPECTED_CONNECTION_ID, EXPECTED_CREDENTIALS_ID, EXPECTED_MAX_CONDITION_CODE,
-					EXPECTED_JCL_MEMBERS_STRING);
-			project.getBuildersList().add(before);
-
-			// workaround for eclipse compiler Ambiguous method call
-			project.save();
-			m_jenkinsRule.jenkins.reload();
-
-			FreeStyleProject reloaded = m_jenkinsRule.jenkins.getItemByFullName(project.getFullName(), FreeStyleProject.class);
-			assertNotNull(reloaded);
-
-			SubmitJclBuilder after = reloaded.getBuildersList().get(SubmitJclBuilder.class);
-			assertNotNull(after);
-
-			m_jenkinsRule.assertEqualBeans(before, after, "connectionId,credentialsId,maxConditionCode,jcl");
-		} catch (Exception e) {
-			// Add the print of the stack trace because the exception message is not enough to troubleshoot the root issue. For
-			// example, if the exception is constructed without a message, you get no information from executing fail().
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
+		assertThat(String.format("Expected SubmitJclBuilder.buildArgumentList() to contain key: %s", TopazUtilitiesConstants.JCL),
+				argsList.contains(TopazUtilitiesConstants.JCL), is(true));
+		assertThat(String.format("Expected SubmitJclBuilder.buildArgumentList() to contain value: %s", EXPECTED_JCL_CMD_ARG),
+				argsList.contains(EXPECTED_JCL_CMD_ARG), is(true));
 	}
 }
