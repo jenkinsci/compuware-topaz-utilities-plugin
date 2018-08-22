@@ -1,7 +1,7 @@
 <?jelly escape-by-default='true'?>
 <j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form" xmlns:c="/lib/credentials" xmlns:cc="/lib/compuware">
 	  <st:include page="common.jelly" class="com.compuware.jenkins.build.Common"/>
-      <f:entry title="${%jcl}" field="jcl" help="/plugin/compuware-topaz-utilities/help-jcl.html" description="Enter free-form JCL.">
+      <f:entry title="${%jclMember}" field="jclMember" help="/plugin/compuware-topaz-utilities/help-jclMember.html" description="List JCL dataset(member)s, each on a separate line.">
            	<f:textarea default=""/>
       </f:entry>
 </j:jelly>

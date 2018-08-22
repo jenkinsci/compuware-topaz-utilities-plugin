@@ -1,2 +1,2 @@
-# compuware-topaz-utilities-plugin
+# compuware-topaz-utilities
 Compuware Topaz (R) interface to various utilities.

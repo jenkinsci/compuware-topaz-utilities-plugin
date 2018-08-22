@@ -35,15 +35,15 @@ import hudson.util.ArgumentListBuilder;
 import hudson.util.FormValidation;
 
 /**
- * Captures the configuration information for a Submit JCL build step.
+ * Captures the configuration information for a Submit JCL Member build step.
  */
-public class SubmitJclBuilder extends SubmitJclBaseBuilder {
+public class SubmitJclMemberBuilder extends SubmitJclBaseBuilder {
 
-	private String jcl;
+	private String jclMember;
 
-	public SubmitJclBuilder(String connectionId) {
+	public SubmitJclMemberBuilder(String connectionId) {
 		super(connectionId);
-		jcl = null;
+		jclMember = null;
 	}
 
 	/**
@@ -55,22 +55,22 @@ public class SubmitJclBuilder extends SubmitJclBaseBuilder {
 	 *            unique id of the selected credential
 	 * @param maxConditionCode
 	 *            a maximum condition code
-	 * @param jcl
-	 *            the JCL statements
+	 * @param jclMember
+	 *            the JCL datasets / members
 	 */
 	@DataBoundConstructor
-	public SubmitJclBuilder(String connectionId, String credentialsId, String maxConditionCode, String jcl) {
+	public SubmitJclMemberBuilder(String connectionId, String credentialsId, String maxConditionCode, String jclMember) {
 		super(connectionId, credentialsId, maxConditionCode);
-		this.jcl = StringUtils.trimToEmpty(jcl);
+		this.jclMember = StringUtils.trimToEmpty(jclMember);
 	}
 
 	/**
-	 * Gets the value of the 'JCL' statements.
+	 * Gets the value of the 'Dataset(member)' statements.
 	 * 
-	 * @return <code>String</code> value of jcl
+	 * @return <code>String</code> value of jclMember
 	 */
-	public String getJcl() {
-		return jcl;
+	public String getJclMember() {
+		return jclMember;
 	}
 
 	/*
@@ -84,8 +84,8 @@ public class SubmitJclBuilder extends SubmitJclBaseBuilder {
 	}
 
 	/**
-	 * DescriptorImpl is used to create instances of <code>SubmitJclBuilder</code>. It also contains the global configuration options as
-	 * fields, just like the <code>SubmitJclBuilder</code> contains the configuration options for a job
+	 * DescriptorImpl is used to create instances of <code>SubmitJclMemberBuilder</code>. It also contains the global configuration options as
+	 * fields, just like the <code>SubmitJclMemberBuilder</code> contains the configuration options for a job
 	 */
 	@Extension
 	public static final class DescriptorImpl extends JclDescriptorImpl<Builder> {
@@ -97,21 +97,21 @@ public class SubmitJclBuilder extends SubmitJclBaseBuilder {
 		 */
 		@Override
 		public String getDisplayName() {
-			return Messages.jclDescriptorDisplayName();
+			return Messages.jclMemberDescriptorDisplayName();
 		}
 
 		/**
-		 * Validator for the 'JCL' field.
+		 * Validator for the 'Dataset(member)' field.
 		 * 
-		 * @param jcl
-		 *            the JCL passed from the config.jelly "jcl" field
+		 * @param jclMember
+		 *            the JCL passed from the config.jelly "jclMember" field
 		 * 
 		 * @return validation message
 		 */
-		public FormValidation doCheckJcl(@QueryParameter String jcl) {
-			String tempValue = StringUtils.trimToEmpty(jcl);
+		public FormValidation doCheckJclMember(@QueryParameter String jclMember) {
+			String tempValue = StringUtils.trimToEmpty(jclMember);
 			if (tempValue.isEmpty()) {
-				return FormValidation.error(Messages.checkJclError());
+				return FormValidation.error(Messages.checkJclMemberError());
 			}
 
 			return FormValidation.ok();
@@ -129,8 +129,8 @@ public class SubmitJclBuilder extends SubmitJclBaseBuilder {
 			throws IOException, InterruptedException {
 		ArgumentListBuilder args = super.buildArgumentList(run, workspace, launcher, listener);
 
-		String escapedJcl = ArgumentUtils.escapeForScript(getJcl());
-		args.add(TopazUtilitiesConstants.JCL, escapedJcl);
+		String escapedJclMember = ArgumentUtils.escapeForScript(StringUtils.replaceChars(getJclMember(), '\n', ','));
+		args.add(TopazUtilitiesConstants.JCL_DSNS, escapedJclMember);
 
 		return args;
 	}
