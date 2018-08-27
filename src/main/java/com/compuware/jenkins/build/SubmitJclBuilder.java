@@ -17,8 +17,10 @@
 package com.compuware.jenkins.build;
 
 import java.io.IOException;
+import java.io.PrintStream;
 
 import org.apache.commons.lang.StringUtils;
+import org.jenkinsci.Symbol;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 
@@ -40,6 +42,7 @@ import hudson.util.FormValidation;
 public class SubmitJclBuilder extends SubmitJclBaseBuilder {
 
 	private String jcl;
+	private FilePath jclFile;
 
 	public SubmitJclBuilder(String connectionId) {
 		super(connectionId);
@@ -87,6 +90,7 @@ public class SubmitJclBuilder extends SubmitJclBaseBuilder {
 	 * DescriptorImpl is used to create instances of <code>SubmitJclBuilder</code>. It also contains the global configuration options as
 	 * fields, just like the <code>SubmitJclBuilder</code> contains the configuration options for a job
 	 */
+	@Symbol("topazSubmitFreeFormJcl")
 	@Extension
 	public static final class DescriptorImpl extends JclDescriptorImpl<Builder> {
 
@@ -129,9 +133,36 @@ public class SubmitJclBuilder extends SubmitJclBaseBuilder {
 			throws IOException, InterruptedException {
 		ArgumentListBuilder args = super.buildArgumentList(run, workspace, launcher, listener);
 
-		String escapedJcl = ArgumentUtils.escapeForScript(getJcl());
-		args.add(TopazUtilitiesConstants.JCL, escapedJcl);
+		PrintStream logger = listener.getLogger();
+
+		jclFile = workspace.createTextTempFile("jcl", ".txt", getJcl()); //$NON-NLS-1$ //$NON-NLS-2$
+		String escapedJclFileName = ArgumentUtils.escapeForScript(jclFile.getRemote());
+		logger.println("jcl: " + escapedJclFileName); //$NON-NLS-1$
+
+		args.add(TopazUtilitiesConstants.JCL, escapedJclFileName);
 
 		return args;
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * 
+	 * @see com.compuware.jenkins.build.SubmitJclBaseBuilder#perform(hudson.model.Run, hudson.FilePath, hudson.Launcher,
+	 * hudson.model.TaskListener)
+	 */
+	@Override
+	public void perform(Run<?, ?> run, FilePath workspace, Launcher launcher, TaskListener listener)
+			throws IOException, InterruptedException {
+		try {
+			super.perform(run, workspace, launcher, listener);
+		} finally {
+			cleanUp();
+		}
+	}
+
+	public void cleanUp() throws IOException, InterruptedException {
+		if (jclFile != null) {
+			jclFile.delete();
+		}		
 	}
 }
