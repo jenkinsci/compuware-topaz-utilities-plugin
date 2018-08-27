@@ -209,7 +209,7 @@ public abstract class SubmitJclBaseBuilder extends Builder implements SimpleBuil
 	 */
 	protected ArgumentListBuilder doBuildArgumentList(Run<?, ?> run, FilePath workspace, Launcher launcher, TaskListener listener)
 			throws IOException, InterruptedException {
-		VirtualChannel vChannel = launcher.getChannel();
+		VirtualChannel vChannel = workspace.getChannel();
 		CpwrGlobalConfiguration globalConfig = CpwrGlobalConfiguration.get();
 
 		PrintStream logger = listener.getLogger();
@@ -232,7 +232,7 @@ public abstract class SubmitJclBaseBuilder extends Builder implements SimpleBuil
 		String password = ArgumentUtils.escapeForScript(credentials.getPassword().getPlainText());
 		String codePage = connection.getCodePage();
 		String timeout = ArgumentUtils.escapeForScript(connection.getTimeout());
-		String topazCliWorkspace = workspace.getRemote() + remoteFileSeparator + CommonConstants.TOPAZ_CLI_WORKSPACE;
+		String topazCliWorkspace = ArgumentUtils.escapeForScript(workspace.getRemote() + remoteFileSeparator + CommonConstants.TOPAZ_CLI_WORKSPACE);
 		logger.println("topazCliWorkspace: " + topazCliWorkspace); //$NON-NLS-1$
 		String maxConditionCodeStr = ArgumentUtils.escapeForScript(getMaxConditionCode());
 

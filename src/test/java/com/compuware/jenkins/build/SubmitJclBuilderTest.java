@@ -20,7 +20,9 @@ import static org.hamcrest.CoreMatchers.*;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.Assert.*;
 
+import java.io.File;
 import java.io.IOException;
+import java.io.PrintStream;
 import java.util.List;
 
 import org.apache.commons.lang.StringUtils;
@@ -32,8 +34,12 @@ import org.mockito.Mockito;
 import com.compuware.jenkins.build.SubmitJclBuilder.DescriptorImpl;
 import com.compuware.jenkins.build.utils.TopazUtilitiesConstants;
 
+import hudson.FilePath;
+import hudson.model.TaskListener;
+import hudson.remoting.VirtualChannel;
 import hudson.util.ArgumentListBuilder;
 import hudson.util.FormValidation;
+import hudson.util.LogTaskListener;
 
 /**
  * Test cases for {@link SubmitJclBuilder}.
@@ -59,7 +65,6 @@ public class SubmitJclBuilderTest {
 			"//SYSTSIN DD *\r\n" + 
 			"   HMIGRATE 'TEST.COBOL.PDS'\r\n" + 
 			"//";
-	private static final String EXPECTED_JCL_CMD_ARG = "\"" + EXPECTED_JCL + "\"";
 	/* @formatter:on */
 
 	public @Rule JenkinsRule rule = new JenkinsRule();
@@ -98,7 +103,7 @@ public class SubmitJclBuilderTest {
 				is(notNullValue()));
 		assertThat("Expected SubmitJclBuilder.DescriptorImpl.getDisplayName() to not be empty.", descriptor.getDisplayName().isEmpty(),
 				is(false));
-		assertEquals("Topaz Submit free-form JCL", descriptor.getDisplayName());
+		assertEquals("Topaz submit free-form JCL", descriptor.getDisplayName());
 	}
 
 	/**
@@ -127,19 +132,35 @@ public class SubmitJclBuilderTest {
 	@Test
 	public void testBuildArgumentList() throws IOException, InterruptedException {
 		SubmitJclBuilder submitJclBuilder = Mockito.spy(new SubmitJclBuilder("connectionId", "credentialsId", "4", EXPECTED_JCL));
-		Mockito.doReturn(new ArgumentListBuilder()).when((SubmitJclBaseBuilder) submitJclBuilder).doBuildArgumentList(null, null, null,
-				null);
-		ArgumentListBuilder args = submitJclBuilder.buildArgumentList(null, null, null, null);
+		FilePath workspace = new FilePath((VirtualChannel) null, "");
+		TaskListener listener = Mockito.spy(new LogTaskListener(null, null));
+		Mockito.doReturn(new ArgumentListBuilder()).when((SubmitJclBaseBuilder) submitJclBuilder).doBuildArgumentList(null, workspace, null,
+				listener);
 
-		assertThat("Expected SubmitJclBuilder.buildArgumentList() to not be null.", args, is(notNullValue()));
+		File testLog = null;
+		try {
+			testLog = new File("testLog");
+			testLog.deleteOnExit();
+			Mockito.doReturn(new PrintStream(testLog)).when(listener).getLogger();
+			ArgumentListBuilder args = submitJclBuilder.buildArgumentList(null, workspace, null, listener);
 
-		List<String> argsList = args.toList();
+			assertThat("Expected SubmitJclBuilder.buildArgumentList() to not be null.", args, is(notNullValue()));
 
-		assertThat("Expected SubmitJclBuilder.buildArgumentList() to not be empty.", argsList.isEmpty(), is(false));
+			List<String> argsList = args.toList();
 
-		assertThat(String.format("Expected SubmitJclBuilder.buildArgumentList() to contain key: %s", TopazUtilitiesConstants.JCL),
-				argsList.contains(TopazUtilitiesConstants.JCL), is(true));
-		assertThat(String.format("Expected SubmitJclBuilder.buildArgumentList() to contain value: %s", EXPECTED_JCL_CMD_ARG),
-				argsList.contains(EXPECTED_JCL_CMD_ARG), is(true));
+			assertThat("Expected SubmitJclBuilder.buildArgumentList() to not be empty.", argsList.isEmpty(), is(false));
+
+			assertThat(String.format("Expected SubmitJclBuilder.buildArgumentList() to contain key: %s", TopazUtilitiesConstants.JCL),
+					argsList.get(0).contains(TopazUtilitiesConstants.JCL), is(true));
+			assertThat(String.format("Expected SubmitJclBuilder.buildArgumentList() to contain value: %s", ".txt"),
+					argsList.get(1).contains(".txt"), is(true));
+		} finally {
+			if (listener != null) {
+				listener.getLogger().close();
+			}
+
+			submitJclBuilder.cleanUp();
+		}
 	}
+
 }

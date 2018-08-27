@@ -20,7 +20,9 @@ import static org.hamcrest.CoreMatchers.*;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.Assert.*;
 
+import java.io.File;
 import java.io.IOException;
+import java.io.PrintStream;
 import java.util.List;
 
 import org.apache.commons.lang.StringUtils;
@@ -32,8 +34,12 @@ import org.mockito.Mockito;
 import com.compuware.jenkins.build.SubmitJclMemberBuilder.DescriptorImpl;
 import com.compuware.jenkins.build.utils.TopazUtilitiesConstants;
 
+import hudson.FilePath;
+import hudson.model.TaskListener;
+import hudson.remoting.VirtualChannel;
 import hudson.util.ArgumentListBuilder;
 import hudson.util.FormValidation;
+import hudson.util.LogTaskListener;
 
 /**
  * Test cases for {@link SubmitJclMemberBuilder}.
@@ -88,7 +94,7 @@ public class SubmitJclMemberBuilderTest {
 				is(notNullValue()));
 		assertThat("Expected SubmitJclMemberBuilder.DescriptorImpl.getDisplayName() to not be empty.",
 				descriptor.getDisplayName().isEmpty(), is(false));
-		assertEquals("Topaz Submit JCL Members", descriptor.getDisplayName());
+		assertEquals("Topaz submit JCL members", descriptor.getDisplayName());
 	}
 
 	/**
@@ -117,22 +123,37 @@ public class SubmitJclMemberBuilderTest {
 	 */
 	@Test
 	public void testBuildArgumentList() throws IOException, InterruptedException {
-		SubmitJclMemberBuilder submitJclMemberBuilder = Mockito.spy(new SubmitJclMemberBuilder("connectionId", "credentialsId", "4", EXPECTED_JCL_MEMBERS));
-		Mockito.doReturn(new ArgumentListBuilder()).when((SubmitJclBaseBuilder)submitJclMemberBuilder).doBuildArgumentList(null, null, null, null);
-		ArgumentListBuilder args = submitJclMemberBuilder.buildArgumentList(null, null, null, null);
+		SubmitJclMemberBuilder submitJclMemberBuilder = Mockito
+				.spy(new SubmitJclMemberBuilder("connectionId", "credentialsId", "4", EXPECTED_JCL_MEMBERS));
+		FilePath workspace = new FilePath((VirtualChannel) null, "");
+		TaskListener listener = Mockito.spy(new LogTaskListener(null, null));
+		Mockito.doReturn(new ArgumentListBuilder()).when((SubmitJclBaseBuilder) submitJclMemberBuilder).doBuildArgumentList(null, workspace,
+				null, listener);
 
-		assertThat("Expected SubmitJclMemberBuilder.buildArgumentList() to not be null.",
-				args, is(notNullValue()));
-		
-		List<String> argsList = args.toList();
+		File testLog = null;
+		try {
+			testLog = new File("testLog");
+			testLog.deleteOnExit();
+			Mockito.doReturn(new PrintStream(testLog)).when(listener).getLogger();
 
-		assertThat("Expected SubmitJclMemberBuilder.buildArgumentList() to not be empty.",
-				argsList.isEmpty(), is(false));
-		
-		assertThat(String.format("Expected SubmitJclMemberBuilder.buildArgumentList() to contain key: %s", TopazUtilitiesConstants.JCL),
-				argsList.contains(TopazUtilitiesConstants.JCL_DSNS), is(true));
-		assertThat(String.format("Expected SubmitJclMemberBuilder.buildArgumentList() to contain value: %s", EXPECTED_JCL_MEMBERS_CMD_ARG),
-				argsList.contains(EXPECTED_JCL_MEMBERS_CMD_ARG), is(true));
+			ArgumentListBuilder args = submitJclMemberBuilder.buildArgumentList(null, workspace, null, listener);
+
+			assertThat("Expected submitJclMemberBuilder.buildArgumentList() to not be null.", args, is(notNullValue()));
+
+			List<String> argsList = args.toList();
+
+			assertThat("Expected submitJclMemberBuilder.buildArgumentList() to not be empty.", argsList.isEmpty(), is(false));
+
+			assertThat(String.format("Expected submitJclMemberBuilder.buildArgumentList() to contain key: %s",
+					TopazUtilitiesConstants.JCL_DSNS), argsList.get(0).contains(TopazUtilitiesConstants.JCL_DSNS), is(true));
+			assertThat(
+					String.format("Expected submitJclMemberBuilder.buildArgumentList() to contain value: %s", EXPECTED_JCL_MEMBERS_CMD_ARG),
+					argsList.get(1).contains(EXPECTED_JCL_MEMBERS_CMD_ARG), is(true));
+		} finally {
+			if (listener != null) {
+				listener.getLogger().close();
+			}
+		}
 	}
 
 }

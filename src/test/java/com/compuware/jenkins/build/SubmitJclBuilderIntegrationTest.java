@@ -19,8 +19,10 @@ package com.compuware.jenkins.build;
 import static org.junit.Assert.*;
 
 import org.junit.Before;
+import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
+import org.jvnet.hudson.test.BuildWatcher;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.kohsuke.stapler.Stapler;
 
@@ -58,8 +60,11 @@ public class SubmitJclBuilderIntegrationTest {
 
 	// Member variables
 	@Rule
-	public JenkinsRule m_jenkinsRule = new JenkinsRule();
-	private CpwrGlobalConfiguration m_globalConfig;
+	public JenkinsRule jenkinsRule = new JenkinsRule();
+	private CpwrGlobalConfiguration globalConfig;
+
+	@ClassRule
+	public static BuildWatcher bw = new BuildWatcher();
 
 	/**
 	 * @throws java.lang.Exception
@@ -83,8 +88,8 @@ public class SubmitJclBuilderIntegrationTest {
 			json.put("topazCLILocationLinux", "/opt/Compuware/TopazCLI");
 			json.put("topazCLILocationWindows", "C:\\Program Files\\Compuware\\Topaz Workbench CLI");
 
-			m_globalConfig = CpwrGlobalConfiguration.get();
-			m_globalConfig.configure(Stapler.getCurrentRequest(), json);
+			globalConfig = CpwrGlobalConfiguration.get();
+			globalConfig.configure(Stapler.getCurrentRequest(), json);
 
 			SystemCredentialsProvider.getInstance().getCredentials().add(new UsernamePasswordCredentialsImpl(CredentialsScope.USER,
 					EXPECTED_CREDENTIALS_ID, null, EXPECTED_USER_ID, EXPECTED_PASSWORD));
@@ -105,7 +110,7 @@ public class SubmitJclBuilderIntegrationTest {
 	@Test
 	public void testExecution() {
 		try {
-			FreeStyleProject project = m_jenkinsRule.createFreeStyleProject("TestProject");
+			FreeStyleProject project = jenkinsRule.createFreeStyleProject("TestProject");
 			project.getBuildersList().add(new SubmitJclBuilder(EXPECTED_CONNECTION_ID, EXPECTED_CREDENTIALS_ID, EXPECTED_MAX_CONDITION_CODE,
 					EXPECTED_JCL_MEMBERS));
 
@@ -115,33 +120,6 @@ public class SubmitJclBuilderIntegrationTest {
 					// wait for the build to complete before obtaining the log
 					continue;
 				}
-
-				//FreeStyleBuild build = project.getLastCompletedBuild();
-				//String logFileOutput = JenkinsRule.getLog(build);
-
-				/*
-				 * String expectedConnectionStr = String.format("-host \"%s\" -port \"%s\"", EXPECTED_HOST, EXPECTED_PORT);
-				 * assertThat("Expected log to contain Host connection: " + expectedConnectionStr + '.', logFileOutput,
-				 * containsString(expectedConnectionStr));
-				 * 
-				 * String expectedCodePageStr = String.format("-code %s", EXPECTED_CODE_PAGE);
-				 * assertThat("Expected log to contain Host code page: " + expectedCodePageStr + '.', logFileOutput,
-				 * containsString(expectedCodePageStr));
-				 * 
-				 * String expectedTimeoutStr = String.format("-timeout \"%s\"", EXPECTED_TIMEOUT);
-				 * assertThat("Expected log to contain Host timeout: " + expectedTimeoutStr + '.', logFileOutput,
-				 * containsString(expectedTimeoutStr));
-				 * 
-				 * String expectedCredentialsStr = String.format("-id \"%s\" -pass %s", EXPECTED_USER_ID, EXPECTED_PASSWORD);
-				 * assertThat("Expected log to contain Login credentials: " + expectedCredentialsStr + '.', logFileOutput,
-				 * containsString(expectedCredentialsStr));
-				 * 
-				 * assertThat(String.format("Expected log to contain Analysis properties path: \"%s\".",
-				 * EXPECTED_ANALYSIS_PROPERTIES_FILEPATH), logFileOutput, containsString(EXPECTED_ANALYSIS_PROPERTIES_FILEPATH));
-				 * 
-				 * assertThat(String.format("Expected log to contain Analysis properties: \"%s\".", EXPECTED_ANALYSIS_PROPERTIES_STRING),
-				 * logFileOutput, containsString(EXPECTED_ANALYSIS_PROPERTIES_STRING));
-				 */
 			}
 		} catch (Exception e) {
 			// Add the print of the stack trace because the exception message is not enough to troubleshoot the root issue. For
@@ -160,22 +138,22 @@ public class SubmitJclBuilderIntegrationTest {
 	@Test
 	public void testRoundTrip() {
 		try {
-			FreeStyleProject project = m_jenkinsRule.createFreeStyleProject("TestProject");
+			FreeStyleProject project = jenkinsRule.createFreeStyleProject("TestProject");
 			SubmitJclBuilder before = new SubmitJclBuilder(EXPECTED_CONNECTION_ID, EXPECTED_CREDENTIALS_ID, EXPECTED_MAX_CONDITION_CODE,
 					EXPECTED_JCL_MEMBERS);
 			project.getBuildersList().add(before);
 
 			// workaround for eclipse compiler Ambiguous method call
 			project.save();
-			m_jenkinsRule.jenkins.reload();
+			jenkinsRule.jenkins.reload();
 
-			FreeStyleProject reloaded = m_jenkinsRule.jenkins.getItemByFullName(project.getFullName(), FreeStyleProject.class);
+			FreeStyleProject reloaded = jenkinsRule.jenkins.getItemByFullName(project.getFullName(), FreeStyleProject.class);
 			assertNotNull(reloaded);
 
 			SubmitJclBuilder after = reloaded.getBuildersList().get(SubmitJclBuilder.class);
 			assertNotNull(after);
 
-			m_jenkinsRule.assertEqualBeans(before, after, "connectionId,credentialsId,maxConditionCode,jcl");
+			jenkinsRule.assertEqualBeans(before, after, "connectionId,credentialsId,maxConditionCode,jcl");
 		} catch (Exception e) {
 			// Add the print of the stack trace because the exception message is not enough to troubleshoot the root issue. For
 			// example, if the exception is constructed without a message, you get no information from executing fail().
@@ -183,4 +161,5 @@ public class SubmitJclBuilderIntegrationTest {
 			fail(e.getMessage());
 		}
 	}
+
 }

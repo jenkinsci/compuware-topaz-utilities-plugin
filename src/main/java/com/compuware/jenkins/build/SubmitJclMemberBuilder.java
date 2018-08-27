@@ -17,8 +17,10 @@
 package com.compuware.jenkins.build;
 
 import java.io.IOException;
+import java.io.PrintStream;
 
 import org.apache.commons.lang.StringUtils;
+import org.jenkinsci.Symbol;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 
@@ -33,11 +35,12 @@ import hudson.model.TaskListener;
 import hudson.tasks.Builder;
 import hudson.util.ArgumentListBuilder;
 import hudson.util.FormValidation;
+import jenkins.tasks.SimpleBuildStep;
 
 /**
  * Captures the configuration information for a Submit JCL Member build step.
  */
-public class SubmitJclMemberBuilder extends SubmitJclBaseBuilder {
+public class SubmitJclMemberBuilder extends SubmitJclBaseBuilder implements SimpleBuildStep {
 
 	private String jclMember;
 
@@ -87,6 +90,7 @@ public class SubmitJclMemberBuilder extends SubmitJclBaseBuilder {
 	 * DescriptorImpl is used to create instances of <code>SubmitJclMemberBuilder</code>. It also contains the global configuration options as
 	 * fields, just like the <code>SubmitJclMemberBuilder</code> contains the configuration options for a job
 	 */
+	@Symbol("topazSubmitJclMembers")
 	@Extension
 	public static final class DescriptorImpl extends JclDescriptorImpl<Builder> {
 
@@ -129,8 +133,12 @@ public class SubmitJclMemberBuilder extends SubmitJclBaseBuilder {
 			throws IOException, InterruptedException {
 		ArgumentListBuilder args = super.buildArgumentList(run, workspace, launcher, listener);
 
+		PrintStream logger = listener.getLogger();
+
 		String escapedJclMember = ArgumentUtils.escapeForScript(StringUtils.replaceChars(getJclMember(), '\n', ','));
 		args.add(TopazUtilitiesConstants.JCL_DSNS, escapedJclMember);
+
+		logger.println("jclMember: " + escapedJclMember); //$NON-NLS-1$
 
 		return args;
 	}
