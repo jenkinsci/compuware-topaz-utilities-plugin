@@ -21,7 +21,7 @@
   </properties>
 
   <name>Compuware Topaz Utilities</name>
-  <description>Compuware Topaz utilities interface</description>
+  <description>This plugin provides access to various Compuware Topaz utilities, such as submitting Jobs on the mainframe.</description>
   <url>https://wiki.jenkins-ci.org/display/JENKINS/Compuware+Topaz+Utilities+Plugin</url>
   <licenses>
     <license>
