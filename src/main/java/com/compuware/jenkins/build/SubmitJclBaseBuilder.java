@@ -53,7 +53,7 @@ public abstract class SubmitJclBaseBuilder extends Builder implements SimpleBuil
 	public SubmitJclBaseBuilder() {
 		connectionId = null;
 		credentialsId = null;
-		maxConditionCode = null;		
+		maxConditionCode = null;
 	}
 
 	/**
@@ -139,81 +139,6 @@ public abstract class SubmitJclBaseBuilder extends Builder implements SimpleBuil
 		FilePath cliDirectory = new FilePath(vChannel, globalConfig.getTopazCLILocation(launcher));
 		CLIVersionUtils.checkCLICompatibility(cliDirectory, TopazUtilitiesConstants.JCL_MINIMUM_CLI_VERSION);
 
-		boolean isShell = launcher.isUnix();
-		String osFile = isShell ? TopazUtilitiesConstants.SUBMIT_JCL_CLI_SH : TopazUtilitiesConstants.SUBMIT_JCL_CLI_BAT;
-
-		ArgumentListBuilder args = buildArgumentList(run, workspace, launcher, listener);
-
-		logger.println();
-
-		// create the CLI workspace (in case it doesn't already exist)
-		EnvVars env = run.getEnvironment(listener);
-		FilePath workDir = new FilePath(vChannel, workspace.getRemote());
-		workDir.mkdirs();
-
-		// invoke the CLI (execute the batch/shell script)
-		int exitValue = launcher.launch().cmds(args).envs(env).stdout(logger).pwd(workDir).join();
-		if (exitValue != 0) {
-			throw new AbortException("Call " + osFile + " exited with value = " + exitValue); //$NON-NLS-1$ //$NON-NLS-2$
-		} else {
-			logger.println("Call " + osFile + " exited with value = " + exitValue); //$NON-NLS-1$ //$NON-NLS-2$
-		}
-	}
-
-	/**
-	 * Constructs an argument list to be sent to the CLI.
-	 * <p>
-	 * Extensions of this class should call this method first and then add their own arguments.
-	 * 
-	 * @param run
-	 *            the current running Jenkins build
-	 * @param workspace
-	 *            the Jenkins job workspace directory
-	 * @param launcher
-	 *            the way to start a process
-	 * @param listener
-	 *            the build listener
-	 * 
-	 * @return an <code>ArgumentListBuilder</code> containing CLI arguments
-	 * 
-	 * @throws IOException
-	 *             if an error in the communication between {@link VirtualChannel}s when attempting to get remote system properties.
-	 * @throws InterruptedException
-	 *             if the current thread is interrupted while waiting for the completion of a call to get remote system properties.
-	 */
-	protected ArgumentListBuilder buildArgumentList(Run<?, ?> run, FilePath workspace, Launcher launcher, TaskListener listener)
-			throws IOException, InterruptedException {
-		return doBuildArgumentList(run, workspace, launcher, listener);
-	}
-
-	/**
-	 * Constructs an argument list to be sent to the CLI.
-	 * <p>
-	 * Extensions of this class should call this method first and then add their own arguments.
-	 * 
-	 * @param run
-	 *            the current running Jenkins build
-	 * @param workspace
-	 *            the Jenkins job workspace directory
-	 * @param launcher
-	 *            the way to start a process
-	 * @param listener
-	 *            the build listener
-	 * 
-	 * @return an <code>ArgumentListBuilder</code> containing CLI arguments
-	 * 
-	 * @throws IOException
-	 *             if an error in the communication between {@link VirtualChannel}s when attempting to get remote system properties.
-	 * @throws InterruptedException
-	 *             if the current thread is interrupted while waiting for the completion of a call to get remote system properties.
-	 */
-	protected ArgumentListBuilder doBuildArgumentList(Run<?, ?> run, FilePath workspace, Launcher launcher, TaskListener listener)
-			throws IOException, InterruptedException {
-		VirtualChannel vChannel = workspace.getChannel();
-		CpwrGlobalConfiguration globalConfig = CpwrGlobalConfiguration.get();
-
-		PrintStream logger = listener.getLogger();
-
 		Properties remoteProperties = vChannel.call(new RemoteSystemProperties());
 		String remoteFileSeparator = remoteProperties.getProperty(CommonConstants.FILE_SEPARATOR_PROPERTY_KEY);
 		boolean isShell = launcher.isUnix();
@@ -232,7 +157,8 @@ public abstract class SubmitJclBaseBuilder extends Builder implements SimpleBuil
 		String password = ArgumentUtils.escapeForScript(credentials.getPassword().getPlainText());
 		String codePage = connection.getCodePage();
 		String timeout = ArgumentUtils.escapeForScript(connection.getTimeout());
-		String topazCliWorkspace = ArgumentUtils.escapeForScript(workspace.getRemote() + remoteFileSeparator + CommonConstants.TOPAZ_CLI_WORKSPACE);
+		String topazCliWorkspace = ArgumentUtils
+				.escapeForScript(workspace.getRemote() + remoteFileSeparator + CommonConstants.TOPAZ_CLI_WORKSPACE);
 		logger.println("topazCliWorkspace: " + topazCliWorkspace); //$NON-NLS-1$
 		String maxConditionCodeStr = ArgumentUtils.escapeForScript(getMaxConditionCode());
 
@@ -248,6 +174,47 @@ public abstract class SubmitJclBaseBuilder extends Builder implements SimpleBuil
 		args.add(CommonConstants.DATA_PARM, topazCliWorkspace);
 		args.add(TopazUtilitiesConstants.MAX_CC_PARM, maxConditionCodeStr);
 
-		return args;		
+		// Let extending classes add their arguments.
+		addArguments(run, workspace, launcher, listener, args);
+
+		logger.println();
+
+		// create the CLI workspace (in case it doesn't already exist)
+		EnvVars env = run.getEnvironment(listener);
+		FilePath workDir = new FilePath(vChannel, workspace.getRemote());
+		workDir.mkdirs();
+
+		// invoke the CLI (execute the batch/shell script)
+		int exitValue = launcher.launch().cmds(args).envs(env).stdout(logger).pwd(workDir).join();
+		if (exitValue != 0) {
+			throw new AbortException("Call " + osFile + " exited with value = " + exitValue); //$NON-NLS-1$ //$NON-NLS-2$
+		} else {
+			logger.println("Call " + osFile + " exited with value = " + exitValue); //$NON-NLS-1$ //$NON-NLS-2$
+		}
 	}
+
+	/**
+	 * Adds arguments to be sent to the CLI.
+	 * <p>
+	 * Extensions of this class should call this method to add their own arguments.
+	 * 
+	 * @param run
+	 *            the current running Jenkins build
+	 * @param workspace
+	 *            the Jenkins job workspace directory
+	 * @param launcher
+	 *            the way to start a process
+	 * @param listener
+	 *            the build listener
+	 * @param args
+	 *            the argument list builder to add CLI arguments to
+	 * 
+	 * @throws IOException
+	 *             if an error in the communication between {@link VirtualChannel}s when attempting to get remote system properties.
+	 * @throws InterruptedException
+	 *             if the current thread is interrupted while waiting for the completion of a call to get remote system properties.
+	 */
+	protected abstract void addArguments(Run<?, ?> run, FilePath workspace, Launcher launcher, TaskListener listener,
+			ArgumentListBuilder args) throws IOException, InterruptedException;
+
 }

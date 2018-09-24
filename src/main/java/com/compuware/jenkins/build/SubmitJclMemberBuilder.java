@@ -125,21 +125,18 @@ public class SubmitJclMemberBuilder extends SubmitJclBaseBuilder implements Simp
 	/*
 	 * (non-Javadoc)
 	 * 
-	 * @see com.compuware.jenkins.build.SubmitJclBaseBuilder#buildArgumentList(hudson.model.Run, hudson.FilePath, hudson.Launcher,
-	 * hudson.model.TaskListener)
+	 * @see com.compuware.jenkins.build.SubmitJclBaseBuilder#addArguments(hudson.model.Run, hudson.FilePath, hudson.Launcher,
+	 * hudson.model.TaskListener, hudson.util.ArgumentListBuilder)
 	 */
 	@Override
-	protected ArgumentListBuilder buildArgumentList(Run<?, ?> run, FilePath workspace, Launcher launcher, TaskListener listener)
+	protected void addArguments(Run<?, ?> run, FilePath workspace, Launcher launcher, TaskListener listener, ArgumentListBuilder args)
 			throws IOException, InterruptedException {
-		ArgumentListBuilder args = super.buildArgumentList(run, workspace, launcher, listener);
-
 		PrintStream logger = listener.getLogger();
 
 		String escapedJclMember = ArgumentUtils.escapeForScript(StringUtils.replaceChars(getJclMember(), '\n', ','));
 		args.add(TopazUtilitiesConstants.JCL_DSNS, escapedJclMember);
 
 		logger.println("jclMember: " + escapedJclMember); //$NON-NLS-1$
-
-		return args;
 	}
+
 }

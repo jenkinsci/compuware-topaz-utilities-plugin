@@ -17,6 +17,7 @@
 package com.compuware.jenkins.build;
 
 import static org.hamcrest.CoreMatchers.*;
+import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.Assert.*;
 
@@ -46,7 +47,7 @@ import hudson.util.LogTaskListener;
  */
 @SuppressWarnings("nls")
 public class SubmitJclMemberBuilderTest {
-	
+
 	// Builder expected values
 	/* @formatter:off */
 	private static final String EXPECTED_CONNECTION_ID = "12345";
@@ -127,8 +128,6 @@ public class SubmitJclMemberBuilderTest {
 				.spy(new SubmitJclMemberBuilder("connectionId", "credentialsId", "4", EXPECTED_JCL_MEMBERS));
 		FilePath workspace = new FilePath((VirtualChannel) null, "");
 		TaskListener listener = Mockito.spy(new LogTaskListener(null, null));
-		Mockito.doReturn(new ArgumentListBuilder()).when((SubmitJclBaseBuilder) submitJclMemberBuilder).doBuildArgumentList(null, workspace,
-				null, listener);
 
 		File testLog = null;
 		try {
@@ -136,13 +135,15 @@ public class SubmitJclMemberBuilderTest {
 			testLog.deleteOnExit();
 			Mockito.doReturn(new PrintStream(testLog)).when(listener).getLogger();
 
-			ArgumentListBuilder args = submitJclMemberBuilder.buildArgumentList(null, workspace, null, listener);
+			ArgumentListBuilder args = new ArgumentListBuilder();
+			submitJclMemberBuilder.addArguments(null, workspace, null, listener, args);
 
 			assertThat("Expected submitJclMemberBuilder.buildArgumentList() to not be null.", args, is(notNullValue()));
 
 			List<String> argsList = args.toList();
 
 			assertThat("Expected submitJclMemberBuilder.buildArgumentList() to not be empty.", argsList.isEmpty(), is(false));
+			assertThat("Expected submitJclMemberBuilder.buildArgumentList() to have two entries.", argsList.size(), is(2));
 
 			assertThat(String.format("Expected submitJclMemberBuilder.buildArgumentList() to contain key: %s",
 					TopazUtilitiesConstants.JCL_DSNS), argsList.get(0).contains(TopazUtilitiesConstants.JCL_DSNS), is(true));
