@@ -125,14 +125,12 @@ public class SubmitJclBuilder extends SubmitJclBaseBuilder {
 	/*
 	 * (non-Javadoc)
 	 * 
-	 * @see com.compuware.jenkins.build.SubmitJclBaseBuilder#buildArgumentList(hudson.model.Run, hudson.FilePath, hudson.Launcher,
-	 * hudson.model.TaskListener)
+	 * @see com.compuware.jenkins.build.SubmitJclBaseBuilder#addArguments(hudson.model.Run, hudson.FilePath, hudson.Launcher,
+	 * hudson.model.TaskListener, hudson.util.ArgumentListBuilder)
 	 */
 	@Override
-	protected ArgumentListBuilder buildArgumentList(Run<?, ?> run, FilePath workspace, Launcher launcher, TaskListener listener)
+	protected void addArguments(Run<?, ?> run, FilePath workspace, Launcher launcher, TaskListener listener, ArgumentListBuilder args)
 			throws IOException, InterruptedException {
-		ArgumentListBuilder args = super.buildArgumentList(run, workspace, launcher, listener);
-
 		PrintStream logger = listener.getLogger();
 
 		jclFile = workspace.createTextTempFile("jcl", ".txt", getJcl()); //$NON-NLS-1$ //$NON-NLS-2$
@@ -140,8 +138,6 @@ public class SubmitJclBuilder extends SubmitJclBaseBuilder {
 		logger.println("jcl: " + escapedJclFileName); //$NON-NLS-1$
 
 		args.add(TopazUtilitiesConstants.JCL, escapedJclFileName);
-
-		return args;
 	}
 
 	/*
@@ -160,9 +156,21 @@ public class SubmitJclBuilder extends SubmitJclBaseBuilder {
 		}
 	}
 
-	public void cleanUp() throws IOException, InterruptedException {
+	/**
+	 * Handle clean up when finished builder execution.
+	 * <p>
+	 * A temporary JCL file is created during builder execution that is consumed by the CLI and is 
+	 * deleted when execution is finished.
+	 * 
+	 * @throws IOException
+	 *             if unable to delete temporary JCL file
+	 * @throws InterruptedException
+	 *             if unable to delete temporary JCL file
+	 */
+	protected void cleanUp() throws IOException, InterruptedException {
 		if (jclFile != null) {
 			jclFile.delete();
-		}		
+		}
 	}
+
 }

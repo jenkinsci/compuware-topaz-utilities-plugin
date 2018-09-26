@@ -17,15 +17,23 @@
 package com.compuware.jenkins.build;
 
 import static org.hamcrest.CoreMatchers.*;
+import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.Assert.*;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.nio.file.DirectoryStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.apache.commons.lang.StringUtils;
+import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.JenkinsRule;
@@ -68,6 +76,19 @@ public class SubmitJclBuilderTest {
 	/* @formatter:on */
 
 	public @Rule JenkinsRule rule = new JenkinsRule();
+
+	/**
+	 * Sets this class up for test execution.
+	 * 
+	 * @throws URISyntaxException
+	 */
+	@BeforeClass
+	public static void setUpBeforeClass() throws Exception {
+		DirectoryStream<Path> stream = Files.newDirectoryStream(Paths.get("."), "jcl*.{txt}");
+		for (Path entry : stream) {
+			Files.deleteIfExists(entry);
+		}
+	}
 
 	/**
 	 * Test method for
@@ -127,40 +148,59 @@ public class SubmitJclBuilderTest {
 	}
 
 	/**
-	 * Test method for {@link com.compuware.jenkins.build.SubmitJclBuilder#buildArgumentList(Run<?, ?>, FilePath, Launcher, TaskListener)}
+	 * Test method for {@link com.compuware.jenkins.build.SubmitJclBuilder#addArguments(Run<?, ?>, FilePath, Launcher, TaskListener, ArgumentListBuilder)}
 	 */
 	@Test
 	public void testBuildArgumentList() throws IOException, InterruptedException {
 		SubmitJclBuilder submitJclBuilder = Mockito.spy(new SubmitJclBuilder("connectionId", "credentialsId", "4", EXPECTED_JCL));
 		FilePath workspace = new FilePath((VirtualChannel) null, "");
 		TaskListener listener = Mockito.spy(new LogTaskListener(null, null));
-		Mockito.doReturn(new ArgumentListBuilder()).when((SubmitJclBaseBuilder) submitJclBuilder).doBuildArgumentList(null, workspace, null,
-				listener);
 
+		List<String> argsList = null;
 		File testLog = null;
 		try {
 			testLog = new File("testLog");
 			testLog.deleteOnExit();
 			Mockito.doReturn(new PrintStream(testLog)).when(listener).getLogger();
-			ArgumentListBuilder args = submitJclBuilder.buildArgumentList(null, workspace, null, listener);
+			ArgumentListBuilder args = new ArgumentListBuilder();
+			submitJclBuilder.addArguments(null, workspace, null, listener, args);
 
-			assertThat("Expected SubmitJclBuilder.buildArgumentList() to not be null.", args, is(notNullValue()));
-
-			List<String> argsList = args.toList();
+			argsList = args.toList();
 
 			assertThat("Expected SubmitJclBuilder.buildArgumentList() to not be empty.", argsList.isEmpty(), is(false));
+			assertThat("Expected SubmitJclBuilder.buildArgumentList() to have two entries.", argsList.size(), is(2));
 
 			assertThat(String.format("Expected SubmitJclBuilder.buildArgumentList() to contain key: %s", TopazUtilitiesConstants.JCL),
 					argsList.get(0).contains(TopazUtilitiesConstants.JCL), is(true));
-			assertThat(String.format("Expected SubmitJclBuilder.buildArgumentList() to contain value: %s", ".txt"),
-					argsList.get(1).contains(".txt"), is(true));
+
+			String workspaceRemotePath = workspace.absolutize().getRemote();
+			String expectedJclStr = "\"" + workspaceRemotePath + "\\jcl.*(?:.txt)\"";
+			Pattern pattern = Pattern.compile(StringUtils.replace(expectedJclStr, "\\", "\\\\"));
+			Matcher matcher = pattern.matcher(argsList.get(1));
+
+			assertThat(String.format("Expected SubmitJclBuilder.buildArgumentList() to contain value: \"%s\\jcl<timestamp>.txt\"",
+					workspaceRemotePath), matcher.find(), is(true));
 		} finally {
 			if (listener != null) {
 				listener.getLogger().close();
 			}
 
+			String trimmedFilePathString = StringUtils.stripStart(argsList.get(1), "\"");
+			trimmedFilePathString = StringUtils.stripEnd(trimmedFilePathString, "\"");
+			Path filePath = Paths.get(trimmedFilePathString);
+			assertThat("Expected SubmitJclBuilder.buildArgumentList() to create a temporary JCL file.", Files.exists(filePath), is(true));
+
 			submitJclBuilder.cleanUp();
+
+			assertThat("Expected SubmitJclBuilder.cleanUp() to delete temporary JCL file.", Files.exists(filePath), is(false));
 		}
 	}
 
+	/**
+	 * Test method for {@link com.compuware.jenkins.build.SubmitJclBuilder#cleanUp()}
+	 */
+	// @Test
+	public void testCleanUp() {
+		// Test via other test methods.
+	}
 }
