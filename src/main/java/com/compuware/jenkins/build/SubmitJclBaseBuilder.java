@@ -157,8 +157,7 @@ public abstract class SubmitJclBaseBuilder extends Builder implements SimpleBuil
 		String password = ArgumentUtils.escapeForScript(credentials.getPassword().getPlainText());
 		String codePage = connection.getCodePage();
 		String timeout = ArgumentUtils.escapeForScript(connection.getTimeout());
-		String topazCliWorkspace = ArgumentUtils
-				.escapeForScript(workspace.getRemote() + remoteFileSeparator + CommonConstants.TOPAZ_CLI_WORKSPACE);
+		String topazCliWorkspace = workspace.getRemote() + remoteFileSeparator + CommonConstants.TOPAZ_CLI_WORKSPACE;
 		logger.println("topazCliWorkspace: " + topazCliWorkspace); //$NON-NLS-1$
 		String maxConditionCodeStr = ArgumentUtils.escapeForScript(getMaxConditionCode());
 
