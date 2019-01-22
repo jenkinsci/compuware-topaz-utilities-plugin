@@ -6,7 +6,7 @@
  * All Compuware products listed within the materials are trademarks of Compuware Corporation. All other company or product
  * names are trademarks of their respective owners.
  * 
- * Copyright (c) 2018 Compuware Corporation. All rights reserved.
+ * Copyright (c) 2018, 2019 Compuware Corporation. All rights reserved.
  */
 package com.compuware.jenkins.build;
 
@@ -149,7 +149,7 @@ public class JclDescriptorImplTest {
 		assertEquals("", dropDownList.get(0).value);
 
 		String connectionId = null;
-		final HostConnection hostConnection = new HostConnection("description", "hostPort", "codePage", "timeOut", "connectionId",
+		final HostConnection hostConnection = new HostConnection("description", "hostPort", "protocol", "codePage", "timeOut", "connectionId",
 				"cesUrl");
 		CpwrGlobalConfiguration globalConfig = CpwrGlobalConfiguration.get();
 		globalConfig.addHostConnection(hostConnection);
