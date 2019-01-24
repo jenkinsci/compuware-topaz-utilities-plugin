@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  * 
- * Copyright (c) 2018 Compuware Corporation
+ * Copyright (c) 2018, 2019 Compuware Corporation
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy,
@@ -16,14 +16,9 @@
  */
 package com.compuware.jenkins.build;
 
-import static org.hamcrest.CoreMatchers.containsString;
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.fail;
 
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
-import org.apache.commons.lang3.StringUtils;
 import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Rule;
@@ -37,7 +32,6 @@ import com.cloudbees.plugins.credentials.SystemCredentialsProvider;
 import com.cloudbees.plugins.credentials.impl.UsernamePasswordCredentialsImpl;
 import com.compuware.jenkins.common.configuration.CpwrGlobalConfiguration;
 
-import hudson.model.FreeStyleBuild;
 import hudson.model.FreeStyleProject;
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
@@ -52,28 +46,15 @@ public class SubmitJclBuilderIntegrationTest {
 	private static final String EXPECTED_CONNECTION_ID = "12345";
 	private static final String EXPECTED_CREDENTIALS_ID = "67890";
 	private static final String EXPECTED_MAX_CONDITION_CODE = "4";
-	private static final String EXPECTED_JCLDSNS_ARG_VALUE = "A.B.MYJCL,A.B.MYJCL2,MYJCL(JCLMEM3)";
 	private static final String EXPECTED_JCL_MEMBERS = 
 			"A.B.MYJCL\n" + 
 			"A.B.MYJCL2\n" + 
 			"MYJCL(JCLMEM3)";
-	private static final String EXPECTED_JCL = 
-			"//* This JCL simply migrates a file.\n" +
-			"//*\n" +
-			"//* 'IKJEFT01' is a utility program that can be used to run TSO\n" +
-			"//* commands from JCL (in this case, Migrate)\n" +
-			"//*\n" +
-			"//TESTMIG JOB ('ACCT#',LOCAL),'NAME',CLASS=A,\n" +
-            "//			             MSGCLASS=R,NOTIFY=&SYSUID,PRTY=13,MSGLEVEL=(1,1)\n" +
-			"//STEP1 EXEC PGM=IKJEFT01\n" +
-			"//SYSTSPRT DD SYSOUT=*\n" +
-			"//SYSTSIN DD *\n" +
-			"//   HMIGRATE 'TEST.COBOL.PDS'\n" +
-			"//";
 	private static final String EXPECTED_HOST = "cw01";
 	private static final String EXPECTED_PORT = "30947";
 	private static final String EXPECTED_CES_URL = "https://expectedcesurl/";
 	private static final String EXPECTED_CODE_PAGE = "1047";
+	private static final String EXPECTED_PROTOCOL = "TLSv1.2";
 	private static final String EXPECTED_TIMEOUT = "123";
 	private static final String EXPECTED_USER_ID = "xdevreg";
 	private static final String EXPECTED_PASSWORD = "********";
@@ -96,6 +77,7 @@ public class SubmitJclBuilderIntegrationTest {
 			JSONObject hostConnection = new JSONObject();
 			hostConnection.put("description", "TestConnection");
 			hostConnection.put("hostPort", EXPECTED_HOST + ':' + EXPECTED_PORT);
+			hostConnection.put("protocol", EXPECTED_PROTOCOL);
 			hostConnection.put("codePage", EXPECTED_CODE_PAGE);
 			hostConnection.put("timeout", EXPECTED_TIMEOUT);
 			hostConnection.put("connectionId", EXPECTED_CONNECTION_ID);
@@ -115,117 +97,6 @@ public class SubmitJclBuilderIntegrationTest {
 			SystemCredentialsProvider.getInstance().getCredentials().add(new UsernamePasswordCredentialsImpl(CredentialsScope.USER,
 					EXPECTED_CREDENTIALS_ID, null, EXPECTED_USER_ID, EXPECTED_PASSWORD));
 			SystemCredentialsProvider.getInstance().save();
-		} catch (Exception e) {
-			// Add the print of the stack trace because the exception message is not enough to troubleshoot the root issue. For
-			// example, if the exception is constructed without a message, you get no information from executing fail().
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
-
-	/**
-	 * Tests the results of an execution.
-	 * <p>
-	 * A project is created, configured and executed where the log is examined to verify results.
-	 */
-	@Test
-	public void testJclMemberExecution() {
-		try {
-			FreeStyleProject project = jenkinsRule.createFreeStyleProject("TestProject");
-			project.getBuildersList().add(new SubmitJclMemberBuilder(EXPECTED_CONNECTION_ID, EXPECTED_CREDENTIALS_ID,
-					EXPECTED_MAX_CONDITION_CODE, EXPECTED_JCL_MEMBERS));
-
-			// don't expect the build to succeed since no CLI exists
-			if (project.scheduleBuild(null)) {
-				while (project.getLastCompletedBuild() == null) {
-					// wait for the build to complete before obtaining the log
-					continue;
-				}
-
-				FreeStyleBuild build = project.getLastCompletedBuild();
-				String logFileOutput = JenkinsRule.getLog(build);
-
-				String expectedConnectionStr = String.format("-host \"%s\" -port \"%s\"", EXPECTED_HOST, EXPECTED_PORT);
-				assertThat("Expected log to contain Host connection: " + expectedConnectionStr + '.', logFileOutput,
-						containsString(expectedConnectionStr));
-
-				String expectedCodePageStr = String.format("-code %s", EXPECTED_CODE_PAGE);
-				assertThat("Expected log to contain Host code page: " + expectedCodePageStr + '.', logFileOutput,
-						containsString(expectedCodePageStr));
-
-				String expectedTimeoutStr = String.format("-timeout \"%s\"", EXPECTED_TIMEOUT);
-				assertThat("Expected log to contain Host timeout: " + expectedTimeoutStr + '.', logFileOutput,
-						containsString(expectedTimeoutStr));
-
-				String expectedCredentialsStr = String.format("-id \"%s\" -pass %s", EXPECTED_USER_ID, EXPECTED_PASSWORD);
-				assertThat("Expected log to contain Login credentials: " + expectedCredentialsStr + '.', logFileOutput,
-						containsString(expectedCredentialsStr));
-
-				String expectedMaxCcStr = String.format("-maxcc \"%s\"", EXPECTED_MAX_CONDITION_CODE);
-				assertThat("Expected log to contain maximum condition code: " + expectedMaxCcStr + '.', logFileOutput,
-						containsString(expectedMaxCcStr));
-
-				String expectedJclMembersStr = String.format("-jcldsns \"%s\"", EXPECTED_JCLDSNS_ARG_VALUE);
-				assertThat("Expected log to contain jcl members: " + expectedJclMembersStr + '.', logFileOutput,
-						containsString(expectedJclMembersStr));
-			}
-		} catch (Exception e) {
-			// Add the print of the stack trace because the exception message is not enough to troubleshoot the root issue. For
-			// example, if the exception is constructed without a message, you get no information from executing fail().
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
-
-	/**
-	 * Tests the results of an execution.
-	 * <p>
-	 * A project is created, configured and executed where the log is examined to verify results.
-	 */
-	@Test
-	public void testFreeFormJclExecution() {
-		try {
-			FreeStyleProject project = jenkinsRule.createFreeStyleProject("TestProject");
-			project.getBuildersList()
-					.add(new SubmitJclBuilder(EXPECTED_CONNECTION_ID, EXPECTED_CREDENTIALS_ID, EXPECTED_MAX_CONDITION_CODE, EXPECTED_JCL));
-
-			// don't expect the build to succeed since no CLI exists
-			if (project.scheduleBuild(null)) {
-				while (project.getLastCompletedBuild() == null) {
-					// wait for the build to complete before obtaining the log
-					continue;
-				}
-
-				FreeStyleBuild build = project.getLastCompletedBuild();
-				String logFileOutput = JenkinsRule.getLog(build);
-
-				String expectedConnectionStr = String.format("-host \"%s\" -port \"%s\"", EXPECTED_HOST, EXPECTED_PORT);
-				assertThat("Expected log to contain Host connection: " + expectedConnectionStr + '.', logFileOutput,
-						containsString(expectedConnectionStr));
-
-				String expectedCodePageStr = String.format("-code %s", EXPECTED_CODE_PAGE);
-				assertThat("Expected log to contain Host code page: " + expectedCodePageStr + '.', logFileOutput,
-						containsString(expectedCodePageStr));
-
-				String expectedTimeoutStr = String.format("-timeout \"%s\"", EXPECTED_TIMEOUT);
-				assertThat("Expected log to contain Host timeout: " + expectedTimeoutStr + '.', logFileOutput,
-						containsString(expectedTimeoutStr));
-
-				String expectedCredentialsStr = String.format("-id \"%s\" -pass %s", EXPECTED_USER_ID, EXPECTED_PASSWORD);
-				assertThat("Expected log to contain Login credentials: " + expectedCredentialsStr + '.', logFileOutput,
-						containsString(expectedCredentialsStr));
-
-				String expectedMaxCcStr = String.format("-maxcc \"%s\"", EXPECTED_MAX_CONDITION_CODE);
-				assertThat("Expected log to contain maximum condition code: " + expectedMaxCcStr + '.', logFileOutput,
-						containsString(expectedMaxCcStr));
-
-				String workspaceRemotePath = build.getWorkspace().getRemote();
-				String expectedJclStr = "-jcl \"" + workspaceRemotePath + "\\jcl.*(?:.txt)\"";
-				Pattern pattern = Pattern.compile(StringUtils.replace(expectedJclStr, "\\", "\\\\"));
-				Matcher matcher = pattern.matcher(logFileOutput);
-				assertThat(String.format("Expected log to contain jcl file: -jcl \"%s\\jcl<timestamp>.txt\"", workspaceRemotePath),
-						matcher.find(), is(true));
-			}
 		} catch (Exception e) {
 			// Add the print of the stack trace because the exception message is not enough to troubleshoot the root issue. For
 			// example, if the exception is constructed without a message, you get no information from executing fail().
