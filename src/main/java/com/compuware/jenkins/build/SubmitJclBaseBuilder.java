@@ -19,6 +19,7 @@ package com.compuware.jenkins.build;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.Properties;
+import java.util.UUID;
 
 import org.apache.commons.lang.StringUtils;
 
@@ -159,7 +160,9 @@ public abstract class SubmitJclBaseBuilder extends Builder implements SimpleBuil
 		String protocol = connection.getProtocol();
 		String codePage = connection.getCodePage();
 		String timeout = ArgumentUtils.escapeForScript(connection.getTimeout());
-		String topazCliWorkspace = workspace.getRemote() + remoteFileSeparator + CommonConstants.TOPAZ_CLI_WORKSPACE;
+		String topazCliWorkspace = workspace.getRemote() + remoteFileSeparator + CommonConstants.TOPAZ_CLI_WORKSPACE
+				+ UUID.randomUUID().toString();
+		FilePath topazDataDir = new FilePath(vChannel, topazCliWorkspace);
 		logger.println("topazCliWorkspace: " + topazCliWorkspace); //$NON-NLS-1$
 		String maxConditionCodeStr = ArgumentUtils.escapeForScript(getMaxConditionCode());
 
@@ -198,6 +201,7 @@ public abstract class SubmitJclBaseBuilder extends Builder implements SimpleBuil
 			throw new AbortException("Call " + osFile + " exited with value = " + exitValue); //$NON-NLS-1$ //$NON-NLS-2$
 		} else {
 			logger.println("Call " + osFile + " exited with value = " + exitValue); //$NON-NLS-1$ //$NON-NLS-2$
+			topazDataDir.deleteRecursive();
 		}
 	}
 
