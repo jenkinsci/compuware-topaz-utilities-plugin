@@ -76,7 +76,9 @@ Do the following:
 
 If desired, repeat the steps above to add more build steps.
 
-Click **Save** and run the job.
+Click **Save**.
+
+Run the job, which submits each specified JCL dataset or member on the mainframe.
 
 <img src="docs/images/jcl.submit.members.png" height="300"/>
 
@@ -100,11 +102,13 @@ Do the following:
 
 - **Maximum condition code** :  Enter the maximum condition code or keep the default value. The submitting of JCL jobs will terminate if any job's return code is greater than the maximum condition code.
 
-- **JCL** : enter JCL
+- **JCL** : Enter JCL statements.
 
 If desired, repeat the steps above to add more build steps.
 
-Click **Save** and run the job.
+Click **Save**.
+
+Run the job, which submits the entered JCL on the mainframe.
 
 <img src="docs/images/jcl.submit.free.form.png" height="300"/>
 
