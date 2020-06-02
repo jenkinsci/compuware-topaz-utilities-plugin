@@ -1,6 +1,11 @@
 Change Log
 =========
 
+1.0.7
+------
+
+- Version history moved out of Wiki content and linked to CHANGELOG.MD; subsequent changes will not be tracked in this file, but in [GitHub releases](https://github.com/jenkinsci/compuware-topaz-utilities-plugin/releases) instead.
+
 1.0.6
 ------
 
