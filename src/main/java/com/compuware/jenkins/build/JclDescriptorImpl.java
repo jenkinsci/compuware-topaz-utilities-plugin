@@ -9,7 +9,7 @@ import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
 
 import com.cloudbees.plugins.credentials.CredentialsProvider;
-import com.cloudbees.plugins.credentials.common.StandardUsernamePasswordCredentials;
+import com.cloudbees.plugins.credentials.common.StandardCredentials;
 import com.cloudbees.plugins.credentials.domains.DomainRequirement;
 import com.compuware.jenkins.common.configuration.CpwrGlobalConfiguration;
 import com.compuware.jenkins.common.configuration.HostConnection;
@@ -162,23 +162,34 @@ public abstract class JclDescriptorImpl<T extends BuildStep & Describable<T>> ex
 	 */
 	public ListBoxModel doFillCredentialsIdItems(@AncestorInPath Jenkins context, @QueryParameter String credentialsId,
 			@AncestorInPath Item project) {
-		List<StandardUsernamePasswordCredentials> creds = CredentialsProvider.lookupCredentials(StandardUsernamePasswordCredentials.class,
+		List<StandardCredentials> creds = CredentialsProvider.lookupCredentials(StandardCredentials.class,
 				project, ACL.SYSTEM, Collections.<DomainRequirement>emptyList());
 
 		ListBoxModel model = new ListBoxModel();
 		model.add(new Option(StringUtils.EMPTY, StringUtils.EMPTY, false));
 
-		for (StandardUsernamePasswordCredentials c : creds) {
+		for (StandardCredentials c : creds) {
 			boolean isSelected = false;
 			if (credentialsId != null) {
 				isSelected = credentialsId.matches(c.getId());
 			}
 
 			String description = Util.fixEmptyAndTrim(c.getDescription());
-			model.add(new Option(c.getUsername() + (description != null ? " (" + description + ')' : StringUtils.EMPTY), //$NON-NLS-1$
+			model.add(new Option(CpwrGlobalConfiguration.get().getCredentialsUser(c) + (description != null ? (" (" + description + ')') : StringUtils.EMPTY), //$NON-NLS-1$
 					c.getId(), isSelected));
 		}
 
 		return model;
 	}
 }
+
+/*******************************************************************************************************************************************
+ * THESE MATERIALS CONTAIN CONFIDENTIAL INFORMATION AND TRADE SECRETS OF BMC SOFTWARE, INC. YOU SHALL MAINTAIN THE MATERIALS AS CONFIDENTIAL
+ * AND SHALL NOT DISCLOSE ITS CONTENTS TO ANY THIRD PARTY EXCEPT AS MAY BE REQUIRED BY LAW OR REGULATION. USE, DISCLOSURE, OR REPRODUCTION
+ * IS PROHIBITED WITHOUT THE PRIOR EXPRESS WRITTEN PERMISSION OF BMC SOFTWARE, INC.
+ * 
+ * ALL BMC SOFTWARE PRODUCTS LISTED WITHIN THE MATERIALS ARE TRADEMARKS OF BMC SOFTWARE, INC. ALL OTHER COMPANY PRODUCT NAMES ARE TRADEMARKS
+ * OF THEIR RESPECTIVE OWNERS.
+ * 
+ * (c) Copyright 2021 BMC Software, Inc.
+ ******************************************************************************************************************************************/

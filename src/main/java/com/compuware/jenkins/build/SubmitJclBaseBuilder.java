@@ -2,6 +2,7 @@
  * The MIT License (MIT)
  * 
  * Copyright (c) 2018, 2019 Compuware Corporation
+ * (c) Copyright 2015 - 2019, 2021 BMC Software, Inc.
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy,
@@ -23,10 +24,8 @@ import java.util.UUID;
 
 import org.apache.commons.lang.StringUtils;
 
-import com.cloudbees.plugins.credentials.common.StandardUsernamePasswordCredentials;
 import com.compuware.jenkins.build.utils.TopazUtilitiesConstants;
 import com.compuware.jenkins.common.configuration.CpwrGlobalConfiguration;
-import com.compuware.jenkins.common.configuration.HostConnection;
 import com.compuware.jenkins.common.utils.ArgumentUtils;
 import com.compuware.jenkins.common.utils.CLIVersionUtils;
 import com.compuware.jenkins.common.utils.CommonConstants;
@@ -144,44 +143,20 @@ public abstract class SubmitJclBaseBuilder extends Builder implements SimpleBuil
 		Properties remoteProperties = vChannel.call(new RemoteSystemProperties());
 		String remoteFileSeparator = remoteProperties.getProperty(CommonConstants.FILE_SEPARATOR_PROPERTY_KEY);
 		boolean isShell = launcher.isUnix();
-		String osFile = isShell ? TopazUtilitiesConstants.SUBMIT_JCL_CLI_SH : TopazUtilitiesConstants.SUBMIT_JCL_CLI_BAT;
+		String osFile = isShell ? TopazUtilitiesConstants.SUBMIT_JCL_CLI_SH : TopazUtilitiesConstants.SUBMIT_JCL_CLI_BAT;	
 
 		String cliScriptFile = globalConfig.getTopazCLILocation(launcher) + remoteFileSeparator + osFile;
 		logger.println("cliScriptFile: " + cliScriptFile); //$NON-NLS-1$
 		String cliScriptFileRemote = new FilePath(vChannel, cliScriptFile).getRemote();
 		logger.println("cliScriptFileRemote: " + cliScriptFileRemote); //$NON-NLS-1$
 
-		HostConnection connection = globalConfig.getHostConnection(getConnectionId());
-		String host = ArgumentUtils.escapeForScript(connection.getHost());
-		String port = ArgumentUtils.escapeForScript(connection.getPort());
-		StandardUsernamePasswordCredentials credentials = globalConfig.getLoginInformation(run.getParent(), getCredentialsId());
-		String userId = ArgumentUtils.escapeForScript(credentials.getUsername());
-		String password = ArgumentUtils.escapeForScript(credentials.getPassword().getPlainText());
-		String protocol = connection.getProtocol();
-		String codePage = connection.getCodePage();
-		String timeout = ArgumentUtils.escapeForScript(connection.getTimeout());
 		String topazCliWorkspace = workspace.getRemote() + remoteFileSeparator + CommonConstants.TOPAZ_CLI_WORKSPACE
 				+ UUID.randomUUID().toString();
 		FilePath topazDataDir = new FilePath(vChannel, topazCliWorkspace);
 		logger.println("topazCliWorkspace: " + topazCliWorkspace); //$NON-NLS-1$
 		String maxConditionCodeStr = ArgumentUtils.escapeForScript(getMaxConditionCode());
 
-		ArgumentListBuilder args = new ArgumentListBuilder();
-		args.add(cliScriptFileRemote);
-		args.add(CommonConstants.HOST_PARM, host);
-		args.add(CommonConstants.PORT_PARM, port);
-		args.add(CommonConstants.USERID_PARM, userId);
-		args.add(CommonConstants.PW_PARM);
-		args.add(password, true);
-
-		// do not pass protocol on command line if null, empty, blank, or 'None'
-		if (StringUtils.isNotBlank(protocol) && !StringUtils.equalsIgnoreCase(protocol, "none")) { //$NON-NLS-1$
-			CLIVersionUtils.checkProtocolSupported(cliVersion);
-			args.add(CommonConstants.PROTOCOL_PARM, protocol);
-		}
-
-		args.add(CommonConstants.CODE_PAGE_PARM, codePage);
-		args.add(CommonConstants.TIMEOUT_PARM, timeout);
+		ArgumentListBuilder args = globalConfig.getArgumentBuilder(cliScriptFileRemote, cliVersion, run.getParent(), getCredentialsId(), getConnectionId());
 		args.add(CommonConstants.DATA_PARM, topazCliWorkspace);
 		args.add(TopazUtilitiesConstants.MAX_CC_PARM, maxConditionCodeStr);
 
