@@ -65,7 +65,7 @@
     <dependency>
       <groupId>com.compuware.jenkins</groupId>
       <artifactId>compuware-common-configuration</artifactId>
-      <version>1.0.12-SNAPSHOT</version>
+      <version>1.0.12</version>
     </dependency>
  	<dependency>
 	  <groupId>org.hamcrest</groupId>
