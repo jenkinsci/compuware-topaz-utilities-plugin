@@ -19,6 +19,8 @@ package com.compuware.jenkins.build;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import org.apache.commons.lang.StringUtils;
 import org.kohsuke.stapler.AncestorInPath;
@@ -31,6 +33,7 @@ import com.cloudbees.plugins.credentials.domains.DomainRequirement;
 import com.compuware.jenkins.common.configuration.CpwrGlobalConfiguration;
 import com.compuware.jenkins.common.configuration.HostConnection;
 
+import hudson.AbortException;
 import hudson.Util;
 import hudson.model.AbstractProject;
 import hudson.model.Describable;
@@ -50,6 +53,8 @@ import net.sf.json.JSONObject;
  * just like the <code>SubmitJclBuilder</code> contains the configuration options for a job
  */
 public abstract class JclDescriptorImpl<T extends BuildStep & Describable<T>> extends BuildStepDescriptor<Builder> {
+	private static final Logger LOGGER = Logger.getLogger("hudson.JclDescriptorImpl"); //$NON-NLS-1$
+
 	/**
 	 * Constructor.
 	 * <p>
@@ -192,8 +197,12 @@ public abstract class JclDescriptorImpl<T extends BuildStep & Describable<T>> ex
 			}
 
 			String description = Util.fixEmptyAndTrim(c.getDescription());
-			model.add(new Option(CpwrGlobalConfiguration.get().getCredentialsUser(c) + (description != null ? (" (" + description + ')') : StringUtils.EMPTY), //$NON-NLS-1$
-					c.getId(), isSelected));
+			try {
+				model.add(new Option(CpwrGlobalConfiguration.get().getCredentialsUser(c)
+						+ (description != null ? (" (" + description + ')') : StringUtils.EMPTY), c.getId(), isSelected)); //$NON-NLS-1$
+			} catch (AbortException e) {
+				LOGGER.log(Level.WARNING, e.getMessage());
+			}
 		}
 
 		return model;
