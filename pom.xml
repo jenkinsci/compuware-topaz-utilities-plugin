@@ -13,16 +13,10 @@
   <version>1.0.8-SNAPSHOT</version>
   <packaging>hpi</packaging>
 
-  <properties>
-    <!-- Baseline Jenkins version you use to build the plugin. Users must have this version or newer to run. -->
-    <jenkins.version>2.21</jenkins.version>
-    <java.level>8</java.level>
-	<powermock.version>1.6.3</powermock.version>
-  </properties>
-
   <name>Compuware Topaz Utilities</name>
   <description>This plugin provides access to various Compuware Topaz utilities, such as submitting Jobs on the mainframe.</description>
   <url>https://github.com/jenkinsci/compuware-topaz-utilities-plugin</url>
+
   <licenses>
     <license>
       <name>MIT License</name>
@@ -45,19 +39,12 @@
     <tag>HEAD</tag>
   </scm>
 
-  <repositories>
-    <repository>
-      <id>repo.jenkins-ci.org</id>
-      <url>https://repo.jenkins-ci.org/public/</url>
-    </repository>
-  </repositories>
-
-  <pluginRepositories>
-    <pluginRepository>
-      <id>repo.jenkins-ci.org</id>
-      <url>https://repo.jenkins-ci.org/public/</url>
-    </pluginRepository>
-  </pluginRepositories>
+  <properties>
+    <!-- Baseline Jenkins version you use to build the plugin. Users must have this version or newer to run. -->
+    <jenkins.version>2.21</jenkins.version>
+    <java.level>8</java.level>
+	<powermock.version>1.6.3</powermock.version>
+  </properties>
 
   <dependencies>
     <dependency>
@@ -78,7 +65,7 @@
     <dependency>
       <groupId>com.compuware.jenkins</groupId>
       <artifactId>compuware-common-configuration</artifactId>
-      <version>1.0.8</version>
+      <version>1.0.12</version>
     </dependency>
  	<dependency>
 	  <groupId>org.hamcrest</groupId>
@@ -123,5 +110,19 @@
 	  <scope>test</scope>
 	</dependency>
   </dependencies>
+
+  <repositories>
+    <repository>
+      <id>repo.jenkins-ci.org</id>
+      <url>https://repo.jenkins-ci.org/public/</url>
+    </repository>
+  </repositories>
+
+  <pluginRepositories>
+    <pluginRepository>
+      <id>repo.jenkins-ci.org</id>
+      <url>https://repo.jenkins-ci.org/public/</url>
+    </pluginRepository>
+  </pluginRepositories>
 
 </project>

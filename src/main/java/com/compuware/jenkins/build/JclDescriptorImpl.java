@@ -1,7 +1,26 @@
+/**
+ * The MIT License (MIT)
+ * 
+ * Copyright (c) 2018 Compuware Corporation
+ * (c) Copyright 2018, 2021 BMC Software, Inc.
+ * 
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy,
+ * modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions: The above copyright notice and this permission notice
+ * shall be included in all copies or substantial portions of the Software.
+ * 
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE
+ * WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+ * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+ * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
 package com.compuware.jenkins.build;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import org.apache.commons.lang.StringUtils;
 import org.kohsuke.stapler.AncestorInPath;
@@ -9,11 +28,12 @@ import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
 
 import com.cloudbees.plugins.credentials.CredentialsProvider;
-import com.cloudbees.plugins.credentials.common.StandardUsernamePasswordCredentials;
+import com.cloudbees.plugins.credentials.common.StandardCredentials;
 import com.cloudbees.plugins.credentials.domains.DomainRequirement;
 import com.compuware.jenkins.common.configuration.CpwrGlobalConfiguration;
 import com.compuware.jenkins.common.configuration.HostConnection;
 
+import hudson.AbortException;
 import hudson.Util;
 import hudson.model.AbstractProject;
 import hudson.model.Describable;
@@ -33,6 +53,8 @@ import net.sf.json.JSONObject;
  * just like the <code>SubmitJclBuilder</code> contains the configuration options for a job
  */
 public abstract class JclDescriptorImpl<T extends BuildStep & Describable<T>> extends BuildStepDescriptor<Builder> {
+	private static final Logger LOGGER = Logger.getLogger("hudson.JclDescriptorImpl"); //$NON-NLS-1$
+
 	/**
 	 * Constructor.
 	 * <p>
@@ -162,21 +184,25 @@ public abstract class JclDescriptorImpl<T extends BuildStep & Describable<T>> ex
 	 */
 	public ListBoxModel doFillCredentialsIdItems(@AncestorInPath Jenkins context, @QueryParameter String credentialsId,
 			@AncestorInPath Item project) {
-		List<StandardUsernamePasswordCredentials> creds = CredentialsProvider.lookupCredentials(StandardUsernamePasswordCredentials.class,
+		List<StandardCredentials> creds = CredentialsProvider.lookupCredentials(StandardCredentials.class,
 				project, ACL.SYSTEM, Collections.<DomainRequirement>emptyList());
 
 		ListBoxModel model = new ListBoxModel();
 		model.add(new Option(StringUtils.EMPTY, StringUtils.EMPTY, false));
 
-		for (StandardUsernamePasswordCredentials c : creds) {
+		for (StandardCredentials c : creds) {
 			boolean isSelected = false;
 			if (credentialsId != null) {
 				isSelected = credentialsId.matches(c.getId());
 			}
 
 			String description = Util.fixEmptyAndTrim(c.getDescription());
-			model.add(new Option(c.getUsername() + (description != null ? " (" + description + ')' : StringUtils.EMPTY), //$NON-NLS-1$
-					c.getId(), isSelected));
+			try {
+				model.add(new Option(CpwrGlobalConfiguration.get().getCredentialsUser(c)
+						+ (description != null ? (" (" + description + ')') : StringUtils.EMPTY), c.getId(), isSelected)); //$NON-NLS-1$
+			} catch (AbortException e) {
+				LOGGER.log(Level.WARNING, e.getMessage());
+			}
 		}
 
 		return model;
