@@ -134,6 +134,9 @@ public abstract class SubmitJclBaseBuilder extends Builder implements SimpleBuil
 		PrintStream logger = listener.getLogger();
 		CpwrGlobalConfiguration globalConfig = CpwrGlobalConfiguration.get();
 		VirtualChannel vChannel = launcher.getChannel();
+		if (vChannel == null) {
+			throw new IllegalStateException("Could not get virtual channel from launcher."); //$NON-NLS-1$
+		}
 
 		// Check CLI compatibility
 		FilePath cliDirectory = new FilePath(vChannel, globalConfig.getTopazCLILocation(launcher));
