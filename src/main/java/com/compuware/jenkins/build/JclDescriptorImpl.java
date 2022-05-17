@@ -152,7 +152,7 @@ public abstract class JclDescriptorImpl<T extends BuildStep & Describable<T>> ex
 	public ListBoxModel doFillConnectionIdItems(@AncestorInPath Jenkins context, @QueryParameter String connectionId,
 			@AncestorInPath Item project) {
 		if (project == null) {
-				Jenkins.get().checkPermission(Jenkins.ADMINISTER);
+			Jenkins.get().checkPermission(Jenkins.ADMINISTER);
 		} else {
 			project.checkPermission(Item.CONFIGURE);
 		}
@@ -191,7 +191,7 @@ public abstract class JclDescriptorImpl<T extends BuildStep & Describable<T>> ex
 	public ListBoxModel doFillCredentialsIdItems(@AncestorInPath Jenkins context, @QueryParameter String credentialsId,
 			@AncestorInPath Item project) {
 		if (project == null) {
-				Jenkins.get().checkPermission(Jenkins.ADMINISTER);
+			Jenkins.get().checkPermission(Jenkins.ADMINISTER);
 		} else {
 			project.checkPermission(Item.CONFIGURE);
 		}
