@@ -151,6 +151,12 @@ public abstract class JclDescriptorImpl<T extends BuildStep & Describable<T>> ex
 	 */
 	public ListBoxModel doFillConnectionIdItems(@AncestorInPath Jenkins context, @QueryParameter String connectionId,
 			@AncestorInPath Item project) {
+		if (project == null) {
+			Jenkins.get().checkPermission(Jenkins.ADMINISTER);
+		} else {
+			project.checkPermission(Item.CONFIGURE);
+		}
+		
 		CpwrGlobalConfiguration globalConfig = CpwrGlobalConfiguration.get();
 		HostConnection[] hostConnections = globalConfig.getHostConnections();
 
@@ -184,6 +190,12 @@ public abstract class JclDescriptorImpl<T extends BuildStep & Describable<T>> ex
 	 */
 	public ListBoxModel doFillCredentialsIdItems(@AncestorInPath Jenkins context, @QueryParameter String credentialsId,
 			@AncestorInPath Item project) {
+		if (project == null) {
+			Jenkins.get().checkPermission(Jenkins.ADMINISTER);
+		} else {
+			project.checkPermission(Item.CONFIGURE);
+		}
+		
 		List<StandardCredentials> creds = CredentialsProvider.lookupCredentials(StandardCredentials.class,
 				project, ACL.SYSTEM, Collections.<DomainRequirement>emptyList());
 
